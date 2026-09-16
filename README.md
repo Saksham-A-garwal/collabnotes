@@ -50,7 +50,7 @@ packages/shared  DTOs and constants shared by both apps
 ## Build status
 Following the phased plan in `docs/05-DEVELOPMENT_PLAN.md`:
 - [x] Phase 0 — repo scaffold, TypeScript config, migrations, `/health`
-- [ ] Phase 1 — auth (register/login/Google OAuth/refresh-rotation/logout) done; document CRUD + Dashboard UI remaining
+- [x] Phase 1 — auth (register/login/Google OAuth/refresh-rotation/logout), document CRUD, Login + Dashboard UI
 - [ ] Phase 2 — realtime sync core
 - [ ] Phase 3 — persistence & version history
 - [ ] Phase 4 — sharing & permissions
