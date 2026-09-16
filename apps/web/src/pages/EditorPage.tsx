@@ -10,6 +10,7 @@ import type { DocumentDetail } from "@collabnotes/shared";
 import { ConnectionStatusDot } from "../components/ConnectionStatusDot.js";
 import { PresenceAvatarStack } from "../components/PresenceAvatarStack.js";
 import { Toolbar } from "../components/Toolbar.js";
+import { VersionHistoryPanel } from "../components/VersionHistoryPanel.js";
 import { useAuth } from "../hooks/useAuth.js";
 import { useAwarenessStates } from "../hooks/useAwarenessStates.js";
 import { useRealtimeDocument } from "../hooks/useRealtimeDocument.js";
@@ -105,6 +106,8 @@ export default function EditorPage() {
 
   const [meta, setMeta] = useState<DocumentDetail | null>(null);
   const [metaError, setMetaError] = useState<"not_found" | "other" | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [restoredNotice, setRestoredNotice] = useState(false);
 
   const { doc, provider, status, role, deletedMessage, toastMessage } = useRealtimeDocument(
     documentId!,
@@ -119,6 +122,17 @@ export default function EditorPage() {
         setMetaError(err instanceof ApiRequestError && err.status === 404 ? "not_found" : "other");
       });
   }, [documentId]);
+
+  function handleRestored() {
+    setHistoryOpen(false);
+    setRestoredNotice(true);
+  }
+
+  useEffect(() => {
+    if (!restoredNotice) return;
+    const t = setTimeout(() => setRestoredNotice(false), 4000);
+    return () => clearTimeout(t);
+  }, [restoredNotice]);
 
   useEffect(() => {
     if (deletedMessage) {
@@ -225,7 +239,7 @@ export default function EditorPage() {
         <button type="button" className="btn btn-secondary" disabled title="Coming soon">
           Share
         </button>
-        <button type="button" className="btn btn-secondary" disabled title="Coming soon">
+        <button type="button" className="btn btn-secondary" onClick={() => setHistoryOpen(true)}>
           History
         </button>
       </header>
@@ -238,9 +252,23 @@ export default function EditorPage() {
         </p>
       )}
 
+      {restoredNotice && (
+        <p role="status" style={{ padding: "var(--space-sm) var(--space-xl) 0", color: "var(--text-secondary)" }}>
+          Restored to a previous version.
+        </p>
+      )}
+
       <div className="editor-canvas-wrap">
         <EditorContent editor={editor} className="editor-canvas" />
       </div>
+
+      <VersionHistoryPanel
+        documentId={documentId!}
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        onRestored={handleRestored}
+        canRestore={role === "owner" || role === "editor"}
+      />
     </div>
   );
 }

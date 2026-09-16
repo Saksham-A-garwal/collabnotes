@@ -10,6 +10,7 @@ import {
   handleRenameDocument,
 } from "./documents.controller.js";
 import { createDocumentSchema, documentIdParamSchema, renameDocumentSchema } from "./documents.schema.js";
+import { snapshotsRouter } from "../snapshots/snapshots.routes.js";
 
 export const documentsRouter = Router();
 
@@ -34,3 +35,5 @@ documentsRouter.delete(
   validate({ params: documentIdParamSchema }),
   asyncHandler(handleDeleteDocument),
 );
+
+documentsRouter.use("/:id/snapshots", snapshotsRouter);

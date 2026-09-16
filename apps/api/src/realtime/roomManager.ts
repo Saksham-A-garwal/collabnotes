@@ -9,7 +9,8 @@ import type {
   SocketData,
 } from "@collabnotes/shared";
 import { redisPub, redisSub } from "../lib/redis.js";
-import { appendUpdate, hydrateDocument } from "./persistence.js";
+import { appendUpdate, createSnapshot, hydrateDocument } from "./persistence.js";
+import { buildRestoreDelta } from "./restoreContent.js";
 
 // One id per running process, stamped on every Redis-relayed message so a
 // server can recognize (and skip) its own publish coming back through its
@@ -45,6 +46,10 @@ export function createRoomManager(io: IoServer) {
   const rooms = new Map<string, Room>();
   const pendingRooms = new Map<string, Promise<Room>>();
   const channelHandlers = new Map<string, (raw: string) => void>();
+  // Documents with content changes since their last snapshot — the periodic
+  // job (snapshotJob.ts, FR-23a) only snapshots rooms in here, and clears
+  // them afterward.
+  const dirty = new Set<string>();
 
   redisSub.on("message", (channel: string, raw: string) => {
     channelHandlers.get(channel)?.(raw);
@@ -79,6 +84,7 @@ export function createRoomManager(io: IoServer) {
         if (instanceId === INSTANCE_ID) return;
         const update = new Uint8Array(Buffer.from(dataBase64, "base64"));
         Y.applyUpdate(room.doc, update, "redis");
+        dirty.add(documentId);
         io.to(roomName(documentId)).emit("sync:update", { documentId, update: toArrayBuffer(update) });
       });
       channelHandlers.set(awarenessChannel(documentId), (raw) => {
@@ -130,11 +136,45 @@ export function createRoomManager(io: IoServer) {
       const room = rooms.get(documentId);
       if (!room) return;
       Y.applyUpdate(room.doc, update, "socket");
+      dirty.add(documentId);
       await appendUpdate(documentId, update);
       io.to(roomName(documentId))
         .except(fromSocketId)
         .emit("sync:update", { documentId, update: toArrayBuffer(update) });
       await publish(updatesChannel(documentId), update);
+    },
+
+    // FR-23(b)/FR-25: restore is expressed as one ordinary delete+insert
+    // transaction (restoreContent.ts) so it can go through the exact same
+    // persist/relay pipeline as applyUpdate — every connected client picks
+    // it up as a normal sync:update, live, no reload (FR-25's requirement).
+    // Immediately writes a new snapshot whose cutoff is "now," which is
+    // what stops a future hydration from replaying the abandoned edits
+    // back in.
+    async restoreSnapshot(documentId: string, snapshotBytes: Uint8Array, triggeredBy: string): Promise<void> {
+      const room = await getOrCreateRoom(documentId);
+      const delta = buildRestoreDelta(room.doc, snapshotBytes);
+
+      await appendUpdate(documentId, delta);
+      io.to(roomName(documentId)).emit("sync:update", { documentId, update: toArrayBuffer(delta) });
+      await publish(updatesChannel(documentId), delta);
+
+      await createSnapshot(documentId, room.doc, triggeredBy);
+      dirty.delete(documentId);
+    },
+
+    // FR-23(a): the periodic job snapshots only documents with changes
+    // since their last snapshot.
+    getDirtyRoomIds(): string[] {
+      return [...dirty];
+    },
+
+    async snapshotIfDirty(documentId: string): Promise<void> {
+      if (!dirty.has(documentId)) return;
+      const room = rooms.get(documentId);
+      if (!room) return;
+      await createSnapshot(documentId, room.doc, null); // null = automatic (FR-23a)
+      dirty.delete(documentId);
     },
 
     // FR-15: relayed opaque and unpersisted, on its own channel.

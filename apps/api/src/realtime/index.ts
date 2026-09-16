@@ -10,10 +10,20 @@ import type {
 import { env } from "../config/env.js";
 import { findDocumentById, getUserRole } from "../db/queries/documents.js";
 import { documentEvents } from "../lib/events.js";
-import { createRoomManager } from "./roomManager.js";
+import { createRoomManager, type RoomManager } from "./roomManager.js";
+import { startSnapshotJob } from "./snapshotJob.js";
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+}
+
+// Set once attachRealtime runs (before server.listen(), so before any
+// request could reach the snapshots REST routes that need it).
+let roomManagerInstance: RoomManager | null = null;
+
+export function getRoomManager(): RoomManager {
+  if (!roomManagerInstance) throw new Error("Realtime layer not attached yet");
+  return roomManagerInstance;
 }
 
 // Wires the socket.io server: JWT handshake auth (Architecture §8 — verified
@@ -46,6 +56,8 @@ export function attachRealtime(httpServer: HttpServer) {
   });
 
   const roomManager = createRoomManager(io);
+  roomManagerInstance = roomManager;
+  startSnapshotJob(roomManager);
 
   documentEvents.on("document:deleted", (documentId) => {
     roomManager.disconnectRoom(documentId, "This document was deleted.").catch((err: unknown) => {

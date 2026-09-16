@@ -1,4 +1,4 @@
-import type { DocumentDetail, DocumentSummary, Role } from "@collabnotes/shared";
+import type { DocumentDetail, DocumentSummary, Role, SnapshotSummary } from "@collabnotes/shared";
 import { apiFetch } from "./apiClient.js";
 
 export const documentsApi = {
@@ -14,4 +14,11 @@ export const documentsApi = {
     apiFetch<{ document: DocumentSummary }>(`/documents/${id}`, { method: "PATCH", body: { title } }),
 
   remove: (id: string) => apiFetch<void>(`/documents/${id}`, { method: "DELETE" }),
+
+  listSnapshots: (id: string) => apiFetch<{ snapshots: SnapshotSummary[] }>(`/documents/${id}/snapshots`),
+
+  restoreSnapshot: (id: string, snapshotId: string) =>
+    apiFetch<{ document: DocumentSummary }>(`/documents/${id}/snapshots/${snapshotId}/restore`, {
+      method: "POST",
+    }),
 };

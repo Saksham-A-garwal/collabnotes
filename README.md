@@ -49,6 +49,6 @@ packages/shared  DTOs and constants shared by both apps
 - [x] Phase 0 — repo scaffold, TypeScript config, migrations, `/health`
 - [x] Phase 1 — auth (register/login/Google OAuth/refresh-rotation/logout), document CRUD, Login + Dashboard UI
 - [x] Phase 2 — realtime sync core (Yjs + Tiptap + socket.io, presence/cursors, viewer read-only enforcement)
-- [ ] Phase 3 — persistence & version history
+- [x] Phase 3 — persistence & version history (periodic snapshots, restore with live propagation)
 - [ ] Phase 4 — sharing & permissions
 - [ ] Phase 5 — polish, accessibility, deployment
