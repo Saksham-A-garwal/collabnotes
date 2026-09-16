@@ -1,3 +1,3 @@
 export * from "./types.js";
 export * from "./errors.js";
-export * from "./ws.js";
+export * from "./realtime.js";

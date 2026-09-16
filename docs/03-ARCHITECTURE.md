@@ -44,6 +44,11 @@ CollabNotes is a single deployable system (for MVP) composed of a React SPA, a N
 **Decision**: Single repository with `apps/api`, `apps/web`, `packages/shared`.
 **Rationale**: Shared TypeScript types (DTOs from SRS §5.6) between frontend and backend without publishing an internal npm package; simpler CI for a solo-developer project.
 
+### ADR-6: socket.io instead of raw `ws` for the realtime transport
+**Decision**: Use `socket.io`/`socket.io-client` for the sync + awareness transport instead of the raw `ws` library and the custom envelope-byte protocol originally sketched in §5.5 of the SRS.
+**Rationale**: socket.io's rooms map directly onto "one room per document" (FR-13/FR-14), its named events replace the 0x00–0x03 envelope byte with typed, self-describing messages, and its built-in reconnection (exponential backoff) plus automatic buffering of emits made while disconnected cover most of FR-16 without bespoke retry/queueing code. The wire-level protocol changed; the semantics (FR-12 through FR-17) did not — see `packages/shared/src/realtime.ts` for the actual event contract now in force, which supersedes SRS §5.5's byte layout.
+**Trade-off accepted**: a socket.io connection isn't a plain WebSocket (it falls back to HTTP long-polling, and speaks its own framing on top of the WS upgrade), so it's a heavier dependency than raw `ws`. Acceptable at this project's scale for the reconnection/room ergonomics it buys back.
+
 ---
 
 ## 3. Tech Stack
@@ -53,7 +58,7 @@ CollabNotes is a single deployable system (for MVP) composed of a React SPA, a N
 | Frontend framework | React + TypeScript | `react`, `react-dom`, `vite` |
 | Rich text editor | Tiptap | `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-collaboration`, `@tiptap/extension-collaboration-cursor` |
 | CRDT | Yjs | `yjs`, `y-protocols` |
-| Realtime transport | WebSocket | `ws` (server), native `WebSocket` (client) |
+| Realtime transport | socket.io | `socket.io` (server), `socket.io-client` (client) — see ADR-6 |
 | Backend framework | Node.js + Express | `express`, `zod` (validation), `helmet`, `express-rate-limit`, `cors` |
 | Auth | JWT + bcrypt | `jsonwebtoken`, `bcrypt` |
 | Database | PostgreSQL | `pg` (or `postgres.js`) |
@@ -75,7 +80,7 @@ collabnotes/
 │   └── api/                        # Express API + WS server
 │       ├── src/
 │       │   ├── routes/               # auth.ts, documents.ts, sharing.ts, snapshots.ts
-│       │   ├── ws/                   # room manager, sync handler, awareness handler
+│       │   ├── realtime/             # socket.io wiring, room manager, sync + awareness relay (ADR-6)
 │       │   ├── services/             # authService, documentService, persistenceService
 │       │   ├── db/                   # migrations/, queries/
 │       │   ├── middleware/           # authGuard, rateLimiter, errorHandler

@@ -255,3 +255,107 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Editor (04-UIUX.md §3.3) */
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-xl);
+  background: var(--bg-chrome);
+  border-top: 1px solid var(--bg-canvas);
+  overflow-x: auto;
+}
+
+.toolbar-btn {
+  min-width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+
+.toolbar-btn:hover {
+  border-color: var(--text-secondary);
+}
+
+.toolbar-btn.active {
+  background: var(--accent);
+  color: white;
+}
+
+.toolbar-select {
+  font: inherit;
+  font-size: var(--text-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-control);
+  border: 1px solid var(--text-secondary);
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+}
+
+.editor-canvas-wrap {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-xl) var(--space-md);
+}
+
+.editor-canvas {
+  width: 100%;
+  max-width: 720px;
+}
+
+.editor-canvas .ProseMirror {
+  font-family: var(--font-doc);
+  font-size: var(--doc-body);
+  line-height: 1.7;
+  color: var(--text-primary);
+  outline: none;
+  min-height: 60vh;
+}
+
+.editor-canvas .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--text-secondary);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Remote collaborator cursors, rendered by @tiptap/extension-collaboration-cursor */
+.collaboration-cursor__caret {
+  position: relative;
+  margin-left: -1px;
+  margin-right: -1px;
+  border-left: 1px solid;
+  border-right: 1px solid;
+  word-break: normal;
+  pointer-events: none;
+}
+
+.collaboration-cursor__label {
+  position: absolute;
+  top: -1.4em;
+  left: -1px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: normal;
+  user-select: none;
+  color: white;
+  padding: 1px 6px;
+  border-radius: 4px 4px 4px 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .editor-toolbar {
+    padding: var(--space-sm) var(--space-md);
+  }
+}

@@ -20,8 +20,11 @@
     "@tiptap/starter-kit": "^2.9.1",
     "@tiptap/extension-collaboration": "^2.9.1",
     "@tiptap/extension-collaboration-cursor": "^2.9.1",
+    "@tiptap/extension-underline": "^2.9.1",
+    "@tiptap/extension-link": "^2.9.1",
     "yjs": "^13.6.20",
-    "y-protocols": "^1.0.6"
+    "y-protocols": "^1.0.6",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

@@ -5,7 +5,7 @@ Real-time collaborative rich-text editor — Yjs CRDT sync, Tiptap editor, Node/
 Full specs: [`docs/01-PRD.md`](docs/01-PRD.md) · [`docs/02-SRS.md`](docs/02-SRS.md) · [`docs/03-ARCHITECTURE.md`](docs/03-ARCHITECTURE.md) · [`docs/04-UIUX.md`](docs/04-UIUX.md) · [`docs/05-DEVELOPMENT_PLAN.md`](docs/05-DEVELOPMENT_PLAN.md)
 
 ## Stack
-React + TypeScript + Tiptap (frontend) · Express + `ws` + Yjs (API/realtime) · PostgreSQL (durable storage) · Redis (cross-instance relay).
+React + TypeScript + Tiptap (frontend) · Express + socket.io + Yjs (API/realtime) · PostgreSQL (durable storage) · Redis (cross-instance relay).
 
 ## Getting started
 
@@ -51,7 +51,7 @@ packages/shared  DTOs and constants shared by both apps
 Following the phased plan in `docs/05-DEVELOPMENT_PLAN.md`:
 - [x] Phase 0 — repo scaffold, TypeScript config, migrations, `/health`
 - [x] Phase 1 — auth (register/login/Google OAuth/refresh-rotation/logout), document CRUD, Login + Dashboard UI
-- [ ] Phase 2 — realtime sync core
+- [x] Phase 2 — realtime sync core (Yjs + Tiptap + socket.io, presence/cursors, viewer read-only enforcement)
 - [ ] Phase 3 — persistence & version history
 - [ ] Phase 4 — sharing & permissions
 - [ ] Phase 5 — polish, accessibility, deployment

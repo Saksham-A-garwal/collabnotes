@@ -1,0 +1,187 @@
+import * as Y from "yjs";
+import {
+  Awareness,
+  applyAwarenessUpdate,
+  encodeAwarenessUpdate,
+  removeAwarenessStates,
+} from "y-protocols/awareness";
+import { io, type Socket } from "socket.io-client";
+import type { ClientToServerEvents, Role, ServerToClientEvents } from "@collabnotes/shared";
+import { loadSession } from "./authStorage.js";
+
+export type ConnectionStatus = "connecting" | "synced" | "reconnecting" | "offline";
+
+// Tags transactions applied from the network so the local `doc.on("update")`
+// listener below doesn't echo them straight back to the server (SRS FR-13:
+// the server never interprets updates, but the client must still avoid
+// re-sending what it just received).
+const REMOTE_ORIGIN = "realtime-remote";
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+}
+
+// A Yjs provider (duck-typed for @tiptap/extension-collaboration-cursor,
+// which only needs `.awareness`) built on socket.io instead of y-websocket.
+// socket.io-client's own reconnection (exponential backoff) and automatic
+// buffering of emits made while disconnected together satisfy FR-16 without
+// bespoke retry/queueing logic: local edits keep landing in `doc` while
+// offline (FR-12), and the queued "sync:update" emits flush on reconnect,
+// while a fresh "sync:step1"/"sync:step2" handshake on every (re)connect
+// picks up whatever the client missed.
+export class RealtimeProvider {
+  readonly doc: Y.Doc;
+  readonly awareness: Awareness;
+  private readonly documentId: string;
+  private readonly socket: Socket<ServerToClientEvents, ClientToServerEvents>;
+
+  private status: ConnectionStatus = "connecting";
+  private role: Role | null = null;
+  private destroyed = false;
+
+  private statusListeners = new Set<(status: ConnectionStatus) => void>();
+  private roleListeners = new Set<(role: Role) => void>();
+  private errorListeners = new Set<(message: string) => void>();
+  private deletedListeners = new Set<(message: string) => void>();
+
+  constructor(documentId: string, doc: Y.Doc) {
+    this.documentId = documentId;
+    this.doc = doc;
+    this.awareness = new Awareness(doc);
+
+    const session = loadSession();
+    const wsUrl = import.meta.env.VITE_WS_URL ?? "http://localhost:4000";
+
+    this.socket = io(wsUrl, {
+      auth: { token: session?.accessToken },
+      reconnectionDelay: 500,
+      reconnectionDelayMax: 8000,
+    });
+
+    this.socket.on("connect", this.handleConnect);
+    this.socket.on("disconnect", this.handleDisconnect);
+    this.socket.on("document:joined", this.handleJoined);
+    this.socket.on("document:error", this.handleServerError);
+    this.socket.on("document:deleted", this.handleDeleted);
+    this.socket.on("document:access-revoked", this.handleDeleted);
+    this.socket.on("sync:step2", this.handleSyncStep2);
+    this.socket.on("sync:update", this.handleRemoteUpdate);
+    this.socket.on("awareness:update", this.handleRemoteAwareness);
+
+    this.doc.on("update", this.handleLocalUpdate);
+    this.awareness.on("update", this.handleLocalAwarenessUpdate);
+    window.addEventListener("beforeunload", this.handleBeforeUnload);
+  }
+
+  private setStatus(status: ConnectionStatus): void {
+    this.status = status;
+    this.statusListeners.forEach((cb) => cb(status));
+  }
+
+  private handleConnect = (): void => {
+    this.socket.emit("document:join", { documentId: this.documentId });
+  };
+
+  private handleDisconnect = (): void => {
+    this.setStatus("reconnecting");
+  };
+
+  private handleJoined = ({ documentId, role }: { documentId: string; role: Role }): void => {
+    if (documentId !== this.documentId) return;
+    this.role = role;
+    this.roleListeners.forEach((cb) => cb(role));
+
+    const stateVector = Y.encodeStateVector(this.doc);
+    this.socket.emit("sync:step1", { documentId: this.documentId, stateVector: toArrayBuffer(stateVector) });
+
+    const localState = this.awareness.getLocalState();
+    if (localState) {
+      const update = encodeAwarenessUpdate(this.awareness, [this.doc.clientID]);
+      this.socket.emit("awareness:update", { documentId: this.documentId, update: toArrayBuffer(update) });
+    }
+  };
+
+  private handleSyncStep2 = ({ documentId, update }: { documentId: string; update: ArrayBuffer }): void => {
+    if (documentId !== this.documentId) return;
+    Y.applyUpdate(this.doc, new Uint8Array(update), REMOTE_ORIGIN);
+    this.setStatus("synced");
+  };
+
+  private handleRemoteUpdate = ({ documentId, update }: { documentId: string; update: ArrayBuffer }): void => {
+    if (documentId !== this.documentId) return;
+    Y.applyUpdate(this.doc, new Uint8Array(update), REMOTE_ORIGIN);
+  };
+
+  private handleRemoteAwareness = ({ documentId, update }: { documentId: string; update: ArrayBuffer }): void => {
+    if (documentId !== this.documentId) return;
+    applyAwarenessUpdate(this.awareness, new Uint8Array(update), REMOTE_ORIGIN);
+  };
+
+  private handleLocalUpdate = (update: Uint8Array, origin: unknown): void => {
+    if (origin === REMOTE_ORIGIN) return;
+    this.socket.emit("sync:update", { documentId: this.documentId, update: toArrayBuffer(update) });
+  };
+
+  private handleLocalAwarenessUpdate = (
+    { added, updated, removed }: { added: number[]; updated: number[]; removed: number[] },
+    origin: unknown,
+  ): void => {
+    if (origin === REMOTE_ORIGIN) return;
+    const changed = added.concat(updated, removed);
+    const update = encodeAwarenessUpdate(this.awareness, changed);
+    this.socket.emit("awareness:update", { documentId: this.documentId, update: toArrayBuffer(update) });
+  };
+
+  private handleServerError = ({ message }: { message: string }): void => {
+    this.errorListeners.forEach((cb) => cb(message));
+  };
+
+  private handleDeleted = ({ message }: { message: string }): void => {
+    this.deletedListeners.forEach((cb) => cb(message));
+  };
+
+  private handleBeforeUnload = (): void => {
+    removeAwarenessStates(this.awareness, [this.doc.clientID], "window unload");
+  };
+
+  setLocalUser(user: { name: string; color: string }): void {
+    this.awareness.setLocalStateField("user", user);
+  }
+
+  onStatusChange(cb: (status: ConnectionStatus) => void): () => void {
+    this.statusListeners.add(cb);
+    cb(this.status);
+    return () => this.statusListeners.delete(cb);
+  }
+
+  onRoleChange(cb: (role: Role) => void): () => void {
+    this.roleListeners.add(cb);
+    if (this.role) cb(this.role);
+    return () => this.roleListeners.delete(cb);
+  }
+
+  onError(cb: (message: string) => void): () => void {
+    this.errorListeners.add(cb);
+    return () => this.errorListeners.delete(cb);
+  }
+
+  onDeleted(cb: (message: string) => void): () => void {
+    this.deletedListeners.add(cb);
+    return () => this.deletedListeners.delete(cb);
+  }
+
+  destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    this.handleBeforeUnload();
+    window.removeEventListener("beforeunload", this.handleBeforeUnload);
+    this.socket.emit("document:leave", { documentId: this.documentId });
+    this.socket.disconnect();
+    this.doc.off("update", this.handleLocalUpdate);
+    this.awareness.off("update", this.handleLocalAwarenessUpdate);
+    this.statusListeners.clear();
+    this.roleListeners.clear();
+    this.errorListeners.clear();
+    this.deletedListeners.clear();
+  }
+}
