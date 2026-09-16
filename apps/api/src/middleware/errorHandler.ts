@@ -14,6 +14,15 @@ export function errorHandler(
     return;
   }
 
+  // A still-valid access token (stateless JWT, Architecture §8) whose user
+  // row no longer exists trips a foreign-key violation on the first write
+  // that references it — treat that as "please sign in again", not a raw
+  // 500 leaking a Postgres constraint name.
+  if ((err as { code?: string })?.code === "23503") {
+    res.status(401).json({ error: { code: "UNAUTHENTICATED", message: "Please sign in again." } });
+    return;
+  }
+
   console.error(JSON.stringify({ level: "error", message: (err as Error)?.message, stack: (err as Error)?.stack }));
   res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Something went wrong." } });
 }
