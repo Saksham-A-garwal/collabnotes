@@ -1,5 +1,6 @@
 import bcrypt from "bcrypt";
 import { ApiError } from "@collabnotes/shared";
+import { resolvePendingInvites } from "../../db/queries/sharing.js";
 import {
   createUserWithOAuth,
   createUserWithPassword,
@@ -22,11 +23,15 @@ export async function registerWithPassword(params: {
   }
 
   const passwordHash = await bcrypt.hash(params.password, BCRYPT_COST);
-  return createUserWithPassword({
+  const user = await createUserWithPassword({
     email: params.email,
     passwordHash,
     displayName: params.displayName,
   });
+  // FR-19: any invite sent to this email before an account existed becomes
+  // real access now.
+  await resolvePendingInvites(params.email, user.id);
+  return user;
 }
 
 export async function loginWithPassword(params: {
@@ -67,11 +72,13 @@ export async function findOrCreateGoogleUser(profile: {
     return byEmail;
   }
 
-  return createUserWithOAuth({
+  const user = await createUserWithOAuth({
     email: profile.email,
     displayName: profile.displayName,
     avatarUrl: profile.avatarUrl,
     oauthProvider: "google",
     oauthUid: profile.googleUid,
   });
+  await resolvePendingInvites(profile.email, user.id);
+  return user;
 }

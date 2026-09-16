@@ -5,6 +5,7 @@ import DashboardPage from "./pages/DashboardPage.js";
 import EditorPage from "./pages/EditorPage.js";
 import GoogleCallbackPage from "./pages/GoogleCallbackPage.js";
 import LoginPage from "./pages/LoginPage.js";
+import ShareRedeemPage from "./pages/ShareRedeemPage.js";
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/oauth/google/callback" element={<GoogleCallbackPage />} />
+          <Route path="/share/:token" element={<ShareRedeemPage />} />
           <Route
             path="/"
             element={

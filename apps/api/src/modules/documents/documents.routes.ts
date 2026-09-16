@@ -11,6 +11,7 @@ import {
 } from "./documents.controller.js";
 import { createDocumentSchema, documentIdParamSchema, renameDocumentSchema } from "./documents.schema.js";
 import { snapshotsRouter } from "../snapshots/snapshots.routes.js";
+import { sharingRouter } from "../sharing/sharing.routes.js";
 
 export const documentsRouter = Router();
 
@@ -37,3 +38,4 @@ documentsRouter.delete(
 );
 
 documentsRouter.use("/:id/snapshots", snapshotsRouter);
+documentsRouter.use("/:id", sharingRouter);

@@ -9,6 +9,7 @@ import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 import type { DocumentDetail } from "@collabnotes/shared";
 import { ConnectionStatusDot } from "../components/ConnectionStatusDot.js";
 import { PresenceAvatarStack } from "../components/PresenceAvatarStack.js";
+import { ShareModal } from "../components/ShareModal.js";
 import { Toolbar } from "../components/Toolbar.js";
 import { VersionHistoryPanel } from "../components/VersionHistoryPanel.js";
 import { useAuth } from "../hooks/useAuth.js";
@@ -107,6 +108,7 @@ export default function EditorPage() {
   const [meta, setMeta] = useState<DocumentDetail | null>(null);
   const [metaError, setMetaError] = useState<"not_found" | "other" | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [restoredNotice, setRestoredNotice] = useState(false);
 
   const { doc, provider, status, role, deletedMessage, toastMessage } = useRealtimeDocument(
@@ -236,9 +238,11 @@ export default function EditorPage() {
 
         <PresenceAvatarStack collaborators={collaborators} />
 
-        <button type="button" className="btn btn-secondary" disabled title="Coming soon">
-          Share
-        </button>
+        {role === "owner" && (
+          <button type="button" className="btn btn-secondary" onClick={() => setShareOpen(true)}>
+            Share
+          </button>
+        )}
         <button type="button" className="btn btn-secondary" onClick={() => setHistoryOpen(true)}>
           History
         </button>
@@ -269,6 +273,8 @@ export default function EditorPage() {
         onRestored={handleRestored}
         canRestore={role === "owner" || role === "editor"}
       />
+
+      {shareOpen && <ShareModal documentId={documentId!} onClose={() => setShareOpen(false)} />}
     </div>
   );
 }

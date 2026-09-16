@@ -5,6 +5,7 @@ import { env } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { documentsRouter } from "./modules/documents/documents.routes.js";
+import { shareRedeemRouter } from "./modules/sharing/sharing.routes.js";
 import { healthRouter } from "./routes/health.js";
 
 export function createApp() {
@@ -23,6 +24,7 @@ export function createApp() {
 
   app.use("/api/v1/auth", authRouter);
   app.use("/api/v1/documents", documentsRouter);
+  app.use("/api/v1/share", shareRedeemRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

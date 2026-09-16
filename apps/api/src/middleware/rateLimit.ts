@@ -23,7 +23,6 @@ type RateLimitOptions = {
 };
 
 async function incrementCounter(key: string, windowSeconds: number): Promise<number> {
-  if (redisPub.status !== "ready") await redisPub.connect();
   const count = await redisPub.incr(key);
   if (count === 1) await redisPub.expire(key, windowSeconds);
   return count;

@@ -60,7 +60,6 @@ export function createRoomManager(io: IoServer) {
       instanceId: INSTANCE_ID,
       dataBase64: Buffer.from(data).toString("base64"),
     };
-    if (redisPub.status !== "ready") await redisPub.connect();
     await redisPub.publish(channel, JSON.stringify(envelope));
   }
 
@@ -93,7 +92,6 @@ export function createRoomManager(io: IoServer) {
         const update = new Uint8Array(Buffer.from(dataBase64, "base64"));
         io.to(roomName(documentId)).emit("awareness:update", { documentId, update: toArrayBuffer(update) });
       });
-      if (redisSub.status !== "ready") await redisSub.connect();
       await redisSub.subscribe(updatesChannel(documentId), awarenessChannel(documentId));
 
       return room;

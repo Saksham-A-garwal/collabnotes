@@ -50,5 +50,5 @@ packages/shared  DTOs and constants shared by both apps
 - [x] Phase 1 — auth (register/login/Google OAuth/refresh-rotation/logout), document CRUD, Login + Dashboard UI
 - [x] Phase 2 — realtime sync core (Yjs + Tiptap + socket.io, presence/cursors, viewer read-only enforcement)
 - [x] Phase 3 — persistence & version history (periodic snapshots, restore with live propagation)
-- [ ] Phase 4 — sharing & permissions
+- [x] Phase 4 — sharing & permissions (invite by email incl. pending invites, share links, revoke, live-kick on removal)
 - [ ] Phase 5 — polish, accessibility, deployment
