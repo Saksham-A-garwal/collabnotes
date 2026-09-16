@@ -14,9 +14,12 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(1),
   GOOGLE_CLIENT_ID: z.string().optional().default(""),
   GOOGLE_CLIENT_SECRET: z.string().optional().default(""),
+  GOOGLE_REDIRECT_URI: z.string().optional().default(""),
   CORS_ORIGIN: z.string().min(1),
   SNAPSHOT_INTERVAL_MS: z.coerce.number().int().positive().default(600000),
   PORT: z.coerce.number().int().positive().default(4000),
+  ACCESS_TOKEN_TTL: z.string().min(1).default("15m"),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
 });
 
 export const env = envSchema.parse(process.env);

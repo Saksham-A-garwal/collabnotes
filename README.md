@@ -30,6 +30,7 @@ No containerization is required to develop (Architecture §9) — point `DATABAS
 docker run -d --name collabnotes-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=collabnotes -p 5432:5432 postgres:16
 docker run -d --name collabnotes-redis -p 6379:6379 redis:7
 ```
+If port 5432 is already taken by another local Postgres install, map to a free host port instead (e.g. `-p 5433:5432`) and update `DATABASE_URL` in `.env` to match.
 
 ## Pre-merge checklist
 ```bash
@@ -49,7 +50,7 @@ packages/shared  DTOs and constants shared by both apps
 ## Build status
 Following the phased plan in `docs/05-DEVELOPMENT_PLAN.md`:
 - [x] Phase 0 — repo scaffold, TypeScript config, migrations, `/health`
-- [ ] Phase 1 — auth & document CRUD
+- [ ] Phase 1 — auth (register/login/Google OAuth/refresh-rotation/logout) done; document CRUD + Dashboard UI remaining
 - [ ] Phase 2 — realtime sync core
 - [ ] Phase 3 — persistence & version history
 - [ ] Phase 4 — sharing & permissions
