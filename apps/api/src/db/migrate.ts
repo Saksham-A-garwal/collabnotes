@@ -13,6 +13,12 @@ config({ path: join(__dirname, "../../../../.env") });
 const migrationsDir = join(__dirname, "migrations");
 
 async function main() {
+  // Without this, pg silently falls back to localhost:5432 and the failure
+  // shows up as a baffling ECONNREFUSED (which is exactly how a missing
+  // DATABASE_URL first surfaced on a fresh deploy).
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is not set — cannot run migrations.");
+  }
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
   await pool.query(`
