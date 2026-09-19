@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { env } from "../../config/env.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { authGuard } from "../../middleware/authGuard.js";
 import { rateLimit } from "../../middleware/rateLimit.js";
@@ -21,7 +22,7 @@ authRouter.use(
   rateLimit({
     keyPrefix: "auth-ip",
     windowSeconds: 15 * 60,
-    max: 10,
+    max: env.AUTH_RATE_LIMIT_MAX,
     message: "Too many sign-in attempts from this address.",
   }),
 );

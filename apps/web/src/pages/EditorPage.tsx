@@ -6,7 +6,7 @@ import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
-import type { DocumentDetail } from "@collabnotes/shared";
+import type { DocumentDetail, Role } from "@collabnotes/shared";
 import { ConnectionStatusDot } from "../components/ConnectionStatusDot.js";
 import { PresenceAvatarStack } from "../components/PresenceAvatarStack.js";
 import { ShareModal } from "../components/ShareModal.js";
@@ -14,9 +14,10 @@ import { Toolbar } from "../components/Toolbar.js";
 import { VersionHistoryPanel } from "../components/VersionHistoryPanel.js";
 import { useAuth } from "../hooks/useAuth.js";
 import { useAwarenessStates } from "../hooks/useAwarenessStates.js";
+import { useMediaQuery } from "../hooks/useMediaQuery.js";
 import { useRealtimeDocument } from "../hooks/useRealtimeDocument.js";
 import { ApiRequestError } from "../lib/apiClient.js";
-import { colorForUser } from "../lib/cursorColors.js";
+import { colorForUser, renderCursor } from "../lib/cursorColors.js";
 import { documentsApi } from "../lib/documentsApi.js";
 
 // Inline-editable title: click to edit, commit on blur/Enter, revert on
@@ -110,6 +111,11 @@ export default function EditorPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [restoredNotice, setRestoredNotice] = useState(false);
+  // UIUX §6: a role change mid-session is announced, and — per WCAG 2.2.1 —
+  // stays until the user dismisses it rather than fading on a timer.
+  const [accessNotice, setAccessNotice] = useState<string | null>(null);
+  const previousRole = useRef<Role | null>(null);
+  const narrow = useMediaQuery("(max-width: 480px)");
 
   const { doc, provider, status, role, deletedMessage, toastMessage } = useRealtimeDocument(
     documentId!,
@@ -157,6 +163,7 @@ export default function EditorPage() {
             Collaboration.configure({ document: doc }),
             CollaborationCursor.configure({
               provider,
+              render: renderCursor,
               user: user
                 ? { name: user.displayName, color: colorForUser(user.id) }
                 : { name: "", color: "" },
@@ -171,6 +178,13 @@ export default function EditorPage() {
   useEffect(() => {
     editor?.setEditable(role !== "viewer");
   }, [editor, role]);
+
+  useEffect(() => {
+    if (role && previousRole.current && previousRole.current !== role) {
+      setAccessNotice(role === "viewer" ? "Your access changed to view-only." : `Your access changed to ${role}.`);
+    }
+    if (role) previousRole.current = role;
+  }, [role]);
 
   if (metaError === "not_found") {
     return (
@@ -209,16 +223,7 @@ export default function EditorPage() {
 
   return (
     <div>
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "var(--space-md) var(--space-xl)",
-          background: "var(--bg-chrome)",
-          gap: "var(--space-md)",
-        }}
-      >
+      <header className="editor-header">
         <button
           type="button"
           className="link-button"
@@ -229,14 +234,16 @@ export default function EditorPage() {
           ← CollabNotes
         </button>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <EditableTitle documentId={documentId!} title={meta.title} canEdit={role === "owner"} />
+        <div className="editor-title-block">
+          <h1 className="editor-title">
+            <EditableTitle documentId={documentId!} title={meta.title} canEdit={role === "owner"} />
+          </h1>
           <div>
             <ConnectionStatusDot status={status} />
           </div>
         </div>
 
-        <PresenceAvatarStack collaborators={collaborators} />
+        <PresenceAvatarStack collaborators={collaborators} maxVisible={narrow ? 0 : 3} />
 
         {role === "owner" && (
           <button type="button" className="btn btn-secondary" onClick={() => setShareOpen(true)}>
@@ -256,15 +263,24 @@ export default function EditorPage() {
         </p>
       )}
 
+      {accessNotice && (
+        <p role="status" className="notice">
+          {accessNotice}{" "}
+          <button type="button" className="link-button" onClick={() => setAccessNotice(null)}>
+            Dismiss
+          </button>
+        </p>
+      )}
+
       {restoredNotice && (
         <p role="status" style={{ padding: "var(--space-sm) var(--space-xl) 0", color: "var(--text-secondary)" }}>
           Restored to a previous version.
         </p>
       )}
 
-      <div className="editor-canvas-wrap">
-        <EditorContent editor={editor} className="editor-canvas" />
-      </div>
+      <main className="editor-canvas-wrap">
+        <EditorContent editor={editor} className="editor-canvas" aria-label="Document content" />
+      </main>
 
       <VersionHistoryPanel
         documentId={documentId!}

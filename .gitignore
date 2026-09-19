@@ -11,3 +11,5 @@ coverage/
 *.tsbuildinfo
 .claude/
 docs/
+test-results/
+playwright-report/

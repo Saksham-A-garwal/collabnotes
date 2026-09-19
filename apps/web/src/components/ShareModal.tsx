@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import type { DocumentAccessEntry, Role, ShareLink } from "@collabnotes/shared";
 import { useAuth } from "../hooks/useAuth.js";
+import { useDialogFocus } from "../hooks/useDialogFocus.js";
 import { ApiRequestError } from "../lib/apiClient.js";
 import { sharingApi } from "../lib/sharingApi.js";
 
@@ -18,6 +19,8 @@ function initials(name: string): string {
 // collaborator list below both, Owner row fixed with no remove action.
 export function ShareModal({ documentId, onClose }: { documentId: string; onClose: () => void }) {
   const { user } = useAuth();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, { trap: true });
   const [collaborators, setCollaborators] = useState<DocumentAccessEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -132,6 +135,7 @@ export function ShareModal({ documentId, onClose }: { documentId: string; onClos
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
+        ref={dialogRef}
         className="modal"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
@@ -254,7 +258,7 @@ export function ShareModal({ documentId, onClose }: { documentId: string; onClos
                   <option value="editor">Editor</option>
                   <option value="viewer">Viewer</option>
                 </select>
-                <button type="button" className="btn btn-danger" onClick={() => handleRemove(c)}>
+                <button type="button" className="btn btn-danger" onClick={() => handleRemove(c)} aria-label={`Remove ${c.email}`}>
                   Remove
                 </button>
               </li>

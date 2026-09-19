@@ -27,8 +27,9 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 // buffering of emits made while disconnected together satisfy FR-16 without
 // bespoke retry/queueing logic: local edits keep landing in `doc` while
 // offline (FR-12), and the queued "sync:update" emits flush on reconnect,
-// while a fresh "sync:step1"/"sync:step2" handshake on every (re)connect
-// picks up whatever the client missed.
+// while a fresh, bidirectional "sync:step1"/"sync:step2" handshake on every
+// (re)connect both pulls what the client missed and pushes what the server
+// missed.
 export class RealtimeProvider {
   readonly doc: Y.Doc;
   readonly awareness: Awareness;
@@ -64,9 +65,11 @@ export class RealtimeProvider {
     this.socket.on("document:error", this.handleServerError);
     this.socket.on("document:deleted", this.handleDeleted);
     this.socket.on("document:access-revoked", this.handleDeleted);
+    this.socket.on("document:role-changed", this.handleRoleChanged);
     this.socket.on("sync:step2", this.handleSyncStep2);
     this.socket.on("sync:update", this.handleRemoteUpdate);
     this.socket.on("awareness:update", this.handleRemoteAwareness);
+    this.socket.on("awareness:query", this.handleAwarenessQuery);
 
     this.doc.on("update", this.handleLocalUpdate);
     this.awareness.on("update", this.handleLocalAwarenessUpdate);
@@ -101,9 +104,37 @@ export class RealtimeProvider {
     }
   };
 
-  private handleSyncStep2 = ({ documentId, update }: { documentId: string; update: ArrayBuffer }): void => {
+  // A live role change while connected (UIUX §6): the server already applies
+  // it to this socket in place, so just surface it — the editor flips between
+  // editable/read-only and shows a persistent notice.
+  private handleRoleChanged = ({ documentId, role }: { documentId: string; role: Role }): void => {
+    if (documentId !== this.documentId) return;
+    this.role = role;
+    this.roleListeners.forEach((cb) => cb(role));
+  };
+
+  private handleSyncStep2 = ({
+    documentId,
+    update,
+    stateVector,
+  }: {
+    documentId: string;
+    update: ArrayBuffer;
+    stateVector: ArrayBuffer;
+  }): void => {
     if (documentId !== this.documentId) return;
     Y.applyUpdate(this.doc, new Uint8Array(update), REMOTE_ORIGIN);
+
+    // Second half of the handshake: send the server whatever it's missing.
+    // socket.io flushes emits buffered while offline *before* our
+    // `document:join` is processed, so the server drops those as coming from
+    // a non-member — this is what actually delivers edits made offline.
+    // (An empty Yjs update encodes to 2 bytes.)
+    const missing = Y.encodeStateAsUpdate(this.doc, new Uint8Array(stateVector));
+    if (missing.length > 2) {
+      this.socket.emit("sync:update", { documentId: this.documentId, update: toArrayBuffer(missing) });
+    }
+
     this.setStatus("synced");
   };
 
@@ -115,6 +146,13 @@ export class RealtimeProvider {
   private handleRemoteAwareness = ({ documentId, update }: { documentId: string; update: ArrayBuffer }): void => {
     if (documentId !== this.documentId) return;
     applyAwarenessUpdate(this.awareness, new Uint8Array(update), REMOTE_ORIGIN);
+  };
+
+  // Someone just joined and can't see us yet — re-announce our presence.
+  private handleAwarenessQuery = ({ documentId }: { documentId: string }): void => {
+    if (documentId !== this.documentId || !this.awareness.getLocalState()) return;
+    const update = encodeAwarenessUpdate(this.awareness, [this.doc.clientID]);
+    this.socket.emit("awareness:update", { documentId: this.documentId, update: toArrayBuffer(update) });
   };
 
   private handleLocalUpdate = (update: Uint8Array, origin: unknown): void => {

@@ -59,7 +59,7 @@ export async function inviteByEmail(
       throw new ApiError("VALIDATION_ERROR", "The owner already has access to this document.");
     }
     const row = await grantAccessToUser(documentId, existingUser.id, role);
-    getRoomManager().kickUser(documentId, existingUser.id, "Your access to this document changed.");
+    getRoomManager().updateMemberRole(documentId, existingUser.id, role);
     return toAccessEntry({ ...row, display_name: existingUser.display_name, email: existingUser.email });
   }
 

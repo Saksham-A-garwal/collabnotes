@@ -90,6 +90,7 @@ export function attachRealtime(httpServer: HttpServer) {
         await roomManager.join(socket, documentId, socket.data.userId, role);
         joinedDocuments.add(documentId);
         socket.emit("document:joined", { documentId, role });
+        roomManager.queryAwareness(socket, documentId);
       } catch (err) {
         console.error(
           JSON.stringify({
@@ -116,7 +117,11 @@ export function attachRealtime(httpServer: HttpServer) {
       const member = roomManager.getMember(documentId, socket.id);
       if (!member) return;
       const update = roomManager.stateVectorDiff(documentId, new Uint8Array(stateVector));
-      socket.emit("sync:step2", { documentId, update: toArrayBuffer(update) });
+      socket.emit("sync:step2", {
+        documentId,
+        update: toArrayBuffer(update),
+        stateVector: toArrayBuffer(roomManager.stateVector(documentId)),
+      });
     });
 
     // FR-17: reject (and log) any write from a socket whose role is viewer —

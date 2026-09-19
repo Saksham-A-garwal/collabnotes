@@ -13,7 +13,8 @@
   --bg-chrome: #f7f7f5;
   --text-primary: #1a1a1a;
   --text-secondary: #6b6b68;
-  --accent: #3d6fe0;
+  --accent: #3866da;
+  --on-accent: #ffffff;
   --danger: #d0392c;
 
   --space-xs: 4px;
@@ -33,6 +34,7 @@
     --text-primary: #f0f0ee;
     --text-secondary: #a0a09c;
     --accent: #6d93f0;
+    --on-accent: #1a1a1a;
     --danger: #e5645a;
   }
 }
@@ -133,7 +135,7 @@ body {
 
 .btn-primary {
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
 }
 
 .btn-secondary {
@@ -177,7 +179,7 @@ body {
   height: 32px;
   border-radius: 50%;
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -209,14 +211,28 @@ body {
   border: 1px solid transparent;
   border-radius: var(--radius-card);
   padding: var(--space-md);
-  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
+
+.document-card:hover,
+.document-card:focus-within {
+  border-color: var(--accent);
+}
+
+.document-open {
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-}
-
-.document-card:hover {
-  border-color: var(--accent);
+  width: 100%;
+  padding: 0;
+  padding-right: 64px; /* clear the Delete button */
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .document-card .title {
@@ -287,7 +303,7 @@ body {
 
 .toolbar-btn.active {
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
 }
 
 .toolbar-select {
@@ -348,7 +364,7 @@ body {
   font-weight: 600;
   line-height: normal;
   user-select: none;
-  color: white;
+  color: var(--on-accent);
   padding: 1px 6px;
   border-radius: 4px 4px 4px 0;
   white-space: nowrap;
@@ -492,5 +508,69 @@ body {
     height: 100%;
     max-height: 100%;
     border-radius: 0;
+  }
+}
+
+/* Editor header — wraps instead of pushing controls off-screen (UIUX §9) */
+.editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-md);
+  padding: var(--space-md) var(--space-xl);
+  background: var(--bg-chrome);
+}
+
+.editor-title-block {
+  flex: 1;
+  min-width: 160px;
+}
+
+.editor-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: 1.4;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: var(--space-sm) var(--space-xl);
+  background: var(--bg-chrome);
+  border-bottom: 1px solid var(--accent);
+  font-size: var(--text-sm);
+}
+
+/* WCAG 2.4.7: the editing surface itself shows where focus is */
+.editor-canvas:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 8px;
+  border-radius: var(--radius-control);
+}
+
+/* Responsive (04-UIUX.md §9): below 640px the dashboard is a single column,
+   the toolbar scrolls horizontally, and the history panel and share modal
+   become full-screen sheets. */
+@media (max-width: 640px) {
+  .dashboard-header,
+  .editor-header {
+    padding-left: var(--space-md);
+    padding-right: var(--space-md);
+  }
+  .dashboard-toolbar,
+  .document-grid,
+  .notice {
+    padding-left: var(--space-md);
+    padding-right: var(--space-md);
+  }
+  .history-panel {
+    width: 100vw;
+  }
+  .toolbar-btn {
+    min-width: 40px;
+    height: 40px;
   }
 }

@@ -24,22 +24,23 @@ function DocumentCard({
 }) {
   const [confirming, setConfirming] = useState(false);
 
+  // Open and Delete are sibling buttons, not one interactive element nested
+  // inside another (invalid for assistive tech, and a stray Enter on the
+  // delete button used to bubble into "open").
   return (
-    <div
-      className="document-card"
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") onOpen();
-      }}
-    >
+    <div className="document-card">
+      <button type="button" className="document-open" onClick={onOpen}>
+        <span className="title">{doc.title}</span>
+        <span className="meta">
+          Updated {relativeTime(doc.updatedAt)}
+          {doc.role !== "owner" && ` · ${doc.role}`}
+        </span>
+      </button>
       {doc.role === "owner" && (
         <button
           type="button"
           className="delete-btn"
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={() => {
             if (confirming) {
               onDelete();
             } else {
@@ -52,11 +53,6 @@ function DocumentCard({
           {confirming ? "Confirm?" : "Delete"}
         </button>
       )}
-      <span className="title">{doc.title}</span>
-      <span className="meta">
-        Updated {relativeTime(doc.updatedAt)}
-        {doc.role !== "owner" && ` · ${doc.role}`}
-      </span>
     </div>
   );
 }

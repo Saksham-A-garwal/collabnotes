@@ -21,9 +21,20 @@ export type ServerToClientEvents = {
   "document:error": (payload: { documentId: string; code: string; message: string }) => void;
   "document:deleted": (payload: { documentId: string; message: string }) => void;
   "document:access-revoked": (payload: { documentId: string; message: string }) => void;
-  "sync:step2": (payload: { documentId: string; update: ArrayBuffer }) => void;
+  // `stateVector` is the server's own state vector, so the client can answer
+  // with exactly what the server is missing (edits made while offline). Yjs
+  // sync is bidirectional — a one-way "here's what you lack" handshake
+  // silently drops the client's offline work.
+  "sync:step2": (payload: { documentId: string; update: ArrayBuffer; stateVector: ArrayBuffer }) => void;
   "sync:update": (payload: { documentId: string; update: ArrayBuffer }) => void;
   "awareness:update": (payload: { documentId: string; update: ArrayBuffer }) => void;
+  // Sent to existing members when someone joins: the server relays awareness
+  // opaquely and never stores it, so without this a new joiner wouldn't see
+  // who's already here until they next moved their cursor.
+  "awareness:query": (payload: { documentId: string }) => void;
+  // A live role change (upgrade or downgrade) for a still-connected member,
+  // applied in place server-side — see roomManager.updateMemberRole.
+  "document:role-changed": (payload: { documentId: string; role: Role }) => void;
 };
 
 export type InterServerEvents = Record<string, never>;

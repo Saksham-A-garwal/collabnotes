@@ -112,6 +112,14 @@ export function createRoomManager(io: IoServer) {
       await socket.join(roomName(documentId));
     },
 
+    // Ask everyone already in the room to re-announce their presence to the
+    // newcomer. Local room only — peers on another server instance won't hear
+    // this (the Redis relay carries awareness *updates*, not queries); they'd
+    // still appear on their next cursor move or Yjs's ~15s awareness renewal.
+    queryAwareness(socket: Socket, documentId: string): void {
+      socket.to(roomName(documentId)).emit("awareness:query", { documentId });
+    },
+
     leave(socket: Socket, documentId: string): void {
       rooms.get(documentId)?.members.delete(socket.id);
       socket.leave(roomName(documentId));
@@ -127,6 +135,12 @@ export function createRoomManager(io: IoServer) {
       const room = rooms.get(documentId);
       if (!room) throw new Error(`Room ${documentId} not joined`);
       return Y.encodeStateAsUpdate(room.doc, clientStateVector);
+    },
+
+    stateVector(documentId: string): Uint8Array {
+      const room = rooms.get(documentId);
+      if (!room) throw new Error(`Room ${documentId} not joined`);
+      return Y.encodeStateVector(room.doc);
     },
 
     // FR-13: apply, persist, relay verbatim — never interpreted or reordered.
@@ -189,6 +203,24 @@ export function createRoomManager(io: IoServer) {
       const sockets = await io.in(roomName(documentId)).fetchSockets();
       for (const s of sockets) s.disconnect(true);
       rooms.delete(documentId);
+    },
+
+    // A role change (either direction) for someone who's connected right now.
+    // Applied in place rather than disconnecting them: server-side
+    // enforcement is immediate either way (applyUpdate/FR-17 consults
+    // member.role on every message, so the very next write from a
+    // downgraded socket is rejected), and the client gets told so it can
+    // disable its toolbar and explain why (UIUX §6) instead of being
+    // stranded — socket.io does not auto-reconnect after a server-initiated
+    // disconnect. Full removal still uses kickUser (FR-14).
+    updateMemberRole(documentId: string, userId: string, role: Role): void {
+      const room = rooms.get(documentId);
+      if (!room) return;
+      for (const [socketId, member] of room.members) {
+        if (member.userId !== userId) continue;
+        member.role = role;
+        io.sockets.sockets.get(socketId)?.emit("document:role-changed", { documentId, role });
+      }
     },
 
     // FR-14: remove one user's socket(s) from the room within one round trip.

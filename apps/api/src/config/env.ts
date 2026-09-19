@@ -20,6 +20,9 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   ACCESS_TOKEN_TTL: z.string().min(1).default("15m"),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  // Per-IP auth requests per 15 minutes (SRS §9.2 A07). E2E raises this: it
+  // registers a dozen users from one address.
+  AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
 });
 
 export const env = envSchema.parse(process.env);
