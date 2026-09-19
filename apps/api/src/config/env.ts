@@ -22,6 +22,12 @@ const envSchema = z.object({
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
   // Per-IP auth requests per 15 minutes (SRS §9.2 A07). E2E raises this: it
   // registers a dozen users from one address.
+  // Serve the built frontend (apps/web/dist) from this process, with SPA
+  // fallback — a single-service deployment: same origin, no CORS.
+  SERVE_WEB: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
   AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
 });
 

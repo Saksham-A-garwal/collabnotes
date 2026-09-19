@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
@@ -25,6 +27,22 @@ export function createApp() {
   app.use("/api/v1/auth", authRouter);
   app.use("/api/v1/documents", documentsRouter);
   app.use("/api/v1/share", shareRedeemRouter);
+
+  // Single-service deployment: serve the built SPA and fall back to
+  // index.html for client-side routes (/documents/:id, /share/:token, ...).
+  // Without the fallback, every deep link and share link 404s on a direct
+  // visit. API, socket.io and health routes are left alone.
+  const webDist = fileURLToPath(new URL("../../web/dist", import.meta.url));
+  if (env.SERVE_WEB && existsSync(webDist)) {
+    app.use(express.static(webDist));
+    app.get("*", (req, res, next) => {
+      if (req.path.startsWith("/api/") || req.path.startsWith("/socket.io/") || req.path === "/health") {
+        next();
+        return;
+      }
+      res.sendFile("index.html", { root: webDist });
+    });
+  }
 
   app.use(notFoundHandler);
   app.use(errorHandler);

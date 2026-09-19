@@ -87,6 +87,7 @@ Requires Node ≥ 18, PostgreSQL 16 and Redis 7.
 | `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL_DAYS` | Token lifetimes (default 15m / 30d) |
 | `SNAPSHOT_INTERVAL_MS` | Auto-snapshot interval (default 10 min) |
 | `AUTH_RATE_LIMIT_MAX` | Auth requests per IP per 15 min (default 10) |
+| `SERVE_WEB` | `true` to serve the built frontend from the API process (default `false`) |
 
 ## Testing
 
@@ -114,7 +115,8 @@ npm start              # node apps/api/dist/server.js
 ```
 
 - The API and WebSocket run in one process; the host must allow WebSocket upgrades. Set `NODE_ENV=production`.
-- Serve `apps/web/dist` from any static host. `VITE_API_URL` / `VITE_WS_URL` are baked in at **build time**, so build with the production URLs.
+- **Single service (simplest):** set `SERVE_WEB=true` and the API also serves `apps/web/dist` with an SPA fallback, so deep links and share links (`/share/:token`) work on a direct visit. Build the frontend for same-origin URLs: `VITE_API_URL=/api/v1` and leave `VITE_WS_URL` unset. (On Windows Git Bash, prefix the build with `MSYS_NO_PATHCONV=1` — it otherwise rewrites the leading `/` into a Windows path.)
+- **Or split it:** serve `apps/web/dist` from any static host that can rewrite unknown paths to `index.html`, with `VITE_API_URL` / `VITE_WS_URL` pointing at the API (baked in at **build time**) and `CORS_ORIGIN` set to the frontend's origin.
 - It scales horizontally: any number of API instances behind a load balancer, coordinated through Redis. Sticky sessions aren't required for correctness.
 - Health check: `GET /health` (200 when Postgres and Redis are reachable, 503 otherwise).
 

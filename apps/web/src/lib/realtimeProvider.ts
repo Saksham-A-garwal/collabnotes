@@ -51,7 +51,8 @@ export class RealtimeProvider {
     this.awareness = new Awareness(doc);
 
     const session = loadSession();
-    const wsUrl = import.meta.env.VITE_WS_URL ?? "http://localhost:4000";
+    // Unset = same origin, which is what the single-service deployment wants.
+    const wsUrl = import.meta.env.VITE_WS_URL || window.location.origin;
 
     this.socket = io(wsUrl, {
       auth: { token: session?.accessToken },
