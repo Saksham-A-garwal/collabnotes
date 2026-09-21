@@ -76,7 +76,8 @@ function DocumentRow({
 
 // Dashboard: create/list/delete documents, per 04-UIUX.md §3.2.
 export default function DashboardPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, setEmailMentions } = useAuth();
+  const [prefError, setPrefError] = useState(false);
   const navigate = useNavigate();
   useDocumentTitle("Documents");
 
@@ -189,6 +190,23 @@ export default function DashboardPage() {
                   <p style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>{user?.displayName}</p>
                   <p style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", overflowWrap: "anywhere" }}>{user?.email}</p>
                 </div>
+                <label className="popover-menu-item popover-toggle">
+                  <input
+                    type="checkbox"
+                    // Accounts from before this setting existed have no value: on, like the server default.
+                    checked={user?.emailMentions !== false}
+                    onChange={(e) => {
+                      setPrefError(false);
+                      setEmailMentions(e.target.checked).catch(() => setPrefError(true));
+                    }}
+                  />
+                  Email me when I&rsquo;m mentioned
+                </label>
+                {prefError && (
+                  <p role="alert" className="field-error" style={{ padding: "0 10px 6px" }}>
+                    Couldn&rsquo;t save that. Try again.
+                  </p>
+                )}
                 <button type="button" className="popover-menu-item" onClick={() => logout()}>
                   <LogOutIcon />
                   Log out

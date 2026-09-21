@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Placeholder } from "@tiptap/extensions";
@@ -22,6 +22,7 @@ import { useAwarenessStates } from "../hooks/useAwarenessStates.js";
 import { useComments } from "../hooks/useComments.js";
 import { useDocumentTitle } from "../hooks/useDocumentTitle.js";
 import { useMediaQuery } from "../hooks/useMediaQuery.js";
+import { usePeople } from "../hooks/usePeople.js";
 import { useRealtimeDocument } from "../hooks/useRealtimeDocument.js";
 import { ApiRequestError } from "../lib/apiClient.js";
 import { colorForUser, renderCursor } from "../lib/cursorColors.js";
@@ -130,6 +131,10 @@ export default function EditorPage() {
   );
   const collaborators = useAwarenessStates(provider?.awareness ?? null);
   const comments = useComments(documentId!, provider, status);
+  const people = usePeople(documentId!, commentsOpen);
+  const [searchParams] = useSearchParams();
+  const linkedThread = searchParams.get("thread");
+  const linkHandled = useRef<{ opened: string | null; scrolled: string | null }>({ opened: null, scrolled: null });
 
   useEffect(() => {
     documentsApi
@@ -226,6 +231,24 @@ export default function EditorPage() {
     anchorController.activeId = activeThreadId;
     refreshAnchors(editor);
   }, [anchorController, comments.threads, activeThreadId, editor]);
+
+  // A link like /documents/<id>?thread=<id> (from a mention email or notification) opens the
+  // comments, shows that thread, and scrolls to the text it's about once its position is known.
+  useEffect(() => {
+    if (!linkedThread || !comments.loaded || linkHandled.current.opened === linkedThread) return;
+    linkHandled.current.opened = linkedThread;
+    if (!comments.threads.some((t) => t.id === linkedThread)) return;
+    setActiveThreadId(linkedThread);
+    setCommentsOpen(true);
+  }, [linkedThread, comments.loaded, comments.threads]);
+
+  useEffect(() => {
+    if (!linkedThread || linkHandled.current.scrolled === linkedThread || activeThreadId !== linkedThread) return;
+    if (ranges.get(linkedThread)) {
+      linkHandled.current.scrolled = linkedThread;
+      scrollToAnchor(editor, anchorController, linkedThread);
+    }
+  }, [linkedThread, activeThreadId, ranges, editor, anchorController]);
 
   // Losing the right to comment closes any half-written comment.
   useEffect(() => {
@@ -399,6 +422,7 @@ export default function EditorPage() {
           synced={status === "synced"}
           role={role}
           userId={user.id}
+          people={people}
           draft={draft}
           actions={comments}
           onActivate={setActiveThreadId}

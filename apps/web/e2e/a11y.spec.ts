@@ -86,13 +86,17 @@ for (const colorScheme of ["light", "dark"] as const) {
     await alice.locator(".selection-comment-btn").click();
     const comments = alice.getByRole("complementary", { name: "Comments" });
     await scan(alice, "comments panel with the composer open");
-    await comments.getByRole("textbox", { name: "Add a comment" }).fill("Does this read well?");
+    const box = comments.getByRole("combobox", { name: "Add a comment" });
+    await box.pressSequentially("@");
+    await expect(alice.getByRole("option", { name: "Bob" })).toBeVisible();
+    await scan(alice, "comment composer with mention suggestions open");
+    await box.fill("Does this read well?");
     await comments.getByRole("button", { name: "Comment", exact: true }).click();
     await expect(comments.getByText("Does this read well?")).toBeVisible();
     await expect(alice.locator(".comment-anchor")).toBeVisible();
     await scan(alice, "editor with a highlighted comment and the panel open");
     await comments.getByRole("button", { name: "Resolve" }).click();
-    await comments.getByRole("button", { name: /Show resolved/ }).click();
+    // Resolving the thread you have open keeps it in view rather than hiding it.
     await expect(comments.getByText(/Resolved by/)).toBeVisible();
     await scan(alice, "comments panel with a resolved thread");
     await alice.getByRole("button", { name: "Comments", exact: true }).click(); // close the panel

@@ -12,6 +12,9 @@ export const authApi = {
   updateProfile: (displayName: string) =>
     apiFetch<{ user: UserPublic }>("/auth/me", { method: "PATCH", body: { displayName } }),
 
+  updateEmailMentions: (emailMentions: boolean) =>
+    apiFetch<{ user: UserPublic }>("/auth/me", { method: "PATCH", body: { emailMentions } }),
+
   oauthGoogle: (code: string) =>
     apiFetch<AuthResponse>("/auth/oauth/google", {
       method: "POST",

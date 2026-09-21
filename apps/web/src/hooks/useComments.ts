@@ -55,13 +55,14 @@ export function useComments(documentId: string, provider: RealtimeProvider | nul
 
   // Every action rejects with the API's error so the caller can show its message.
   const actions = {
-    createThread: (input: { quote: string; anchor: CommentAnchor | null; body: string }) =>
+    createThread: (input: { quote: string; anchor: CommentAnchor | null; body: string; mentions: string[] }) =>
       commentsApi.createThread(documentId, input).then(({ thread }) => apply(thread)),
-    reply: (threadId: string, body: string) => commentsApi.reply(documentId, threadId, body).then(({ thread }) => apply(thread)),
+    reply: (threadId: string, body: string, mentions: string[]) =>
+      commentsApi.reply(documentId, threadId, body, mentions).then(({ thread }) => apply(thread)),
     setResolved: (threadId: string, resolved: boolean) =>
       commentsApi.setResolved(documentId, threadId, resolved).then(({ thread }) => apply(thread)),
-    editComment: (threadId: string, commentId: string, body: string) =>
-      commentsApi.editComment(documentId, threadId, commentId, body).then(({ thread }) => apply(thread)),
+    editComment: (threadId: string, commentId: string, body: string, mentions: string[]) =>
+      commentsApi.editComment(documentId, threadId, commentId, body, mentions).then(({ thread }) => apply(thread)),
     deleteComment: (threadId: string, commentId: string) =>
       commentsApi.deleteComment(documentId, threadId, commentId).then(({ thread }) => apply(thread)),
     deleteThread: (threadId: string) =>

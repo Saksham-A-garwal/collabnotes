@@ -1742,3 +1742,49 @@ button.avatar:hover {
     margin-right: 0;
   }
 }
+
+/* -------------------------------------------------------------- mentions */
+.composer-field {
+  position: relative;
+}
+.mention-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 7;
+  margin: 2px 0 0;
+  padding: var(--space-xs);
+  list-style: none;
+  background: var(--bg-canvas);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-popover);
+}
+.mention-option {
+  padding: 6px 8px;
+  border-radius: var(--radius-control);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.mention-option.is-active,
+.mention-option:hover {
+  background: var(--accent-soft);
+}
+.mention {
+  padding: 0 2px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+.popover-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+.popover-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}

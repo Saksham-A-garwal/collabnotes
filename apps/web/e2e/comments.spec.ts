@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createDocument, editor, emailFor, invite, joinAsInvited, registerFromScratch, selectWord, typeInEditor } from "./helpers.js";
+import { createDocument, editor, emailFor, emailTo, invite, joinAsInvited, registerFromScratch, selectWord, typeInEditor } from "./helpers.js";
 
 const panel = (page: Page) => page.getByRole("complementary", { name: "Comments" });
 const commentsButton = (page: Page) => page.getByRole("button", { name: /^Comments/ });
@@ -8,7 +8,7 @@ const floatingComment = (page: Page) => page.locator(".selection-comment-btn");
 async function comment(page: Page, word: string, body: string): Promise<void> {
   await selectWord(page, word);
   await floatingComment(page).click();
-  await panel(page).getByRole("textbox", { name: "Add a comment" }).fill(body);
+  await panel(page).getByRole("combobox", { name: "Add a comment" }).fill(body);
   await panel(page).getByRole("button", { name: "Comment", exact: true }).click();
   await expect(panel(page).getByText(body)).toBeVisible();
 }
@@ -40,7 +40,7 @@ test("Comment on some text: the other person sees it live, replies, and resolvin
   await expect(panel(bob.page).getByText("Is this the right word?")).toBeVisible();
   await expect(panel(bob.page).getByText("Alice").first()).toBeVisible();
 
-  await panel(bob.page).getByRole("textbox", { name: "Reply" }).fill("Yes, keep it.");
+  await panel(bob.page).getByRole("combobox", { name: "Reply" }).fill("Yes, keep it.");
   await panel(bob.page).getByRole("button", { name: "Reply", exact: true }).click();
   // Alice's panel is still open from writing the comment, and the reply arrives in it.
   await expect(panel(alice).getByText("Yes, keep it.")).toBeVisible();
@@ -119,7 +119,7 @@ test("A commenter can comment but not edit; a viewer can read comments but not a
   await expect(commentsButton(viewer.page)).toHaveAccessibleName("Comments, 1 open");
   await commentsButton(viewer.page).click();
   await expect(panel(viewer.page).getByText("What does this mean?")).toBeVisible();
-  await expect(panel(viewer.page).getByRole("textbox")).toHaveCount(0);
+  await expect(panel(viewer.page).getByRole("combobox")).toHaveCount(0);
   await expect(panel(viewer.page).getByRole("button", { name: "Resolve" })).toHaveCount(0);
   await selectWord(viewer.page, "Read");
   await expect(floatingComment(viewer.page)).toHaveCount(0);
@@ -137,6 +137,63 @@ test("Comment text is shown as plain text, never as markup", async ({ browser })
   await expect(panel(bob.page).locator("img")).toHaveCount(0);
   await expect(panel(bob.page).locator("strong", { hasText: "not bold" })).toHaveCount(0);
   expect(await bob.page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned)).toBeUndefined();
+
+  await ownerContext.close();
+  await bob.context.close();
+});
+
+test("Mentioning someone: suggestions, highlight, an email whose link opens the thread, and the off switch", async ({ browser }) => {
+  const { ownerContext, alice, bob } = await startShared(browser, "Editor", "Please review the launch plan");
+  const editorEmail = emailFor("Editor");
+  // Not in the document right now, so the email isn't skipped as "they can see it happening".
+  await bob.page.goto("/");
+  await expect(bob.page.getByRole("button", { name: "New document" }).first()).toBeVisible();
+
+  await selectWord(alice, "launch");
+  await floatingComment(alice).click();
+  const box = panel(alice).getByRole("combobox", { name: "Add a comment" });
+  // You can't mention yourself: "Al" (Alice) suggests nobody.
+  await box.pressSequentially("@Al");
+  await expect(alice.getByRole("listbox", { name: "People to mention" })).toHaveCount(0);
+  await box.fill("");
+  await box.pressSequentially("@Ed");
+  await expect(alice.getByRole("option", { name: "Editor" })).toBeVisible();
+  await box.press("Enter"); // picks the highlighted person rather than submitting
+  await expect(box).toHaveValue("@Editor ");
+  await box.pressSequentially("could you check this?");
+  await panel(alice).getByRole("button", { name: "Comment", exact: true }).click();
+  await expect(panel(alice).locator(".mention", { hasText: "@Editor" })).toBeVisible();
+
+  // The email arrives, and its link opens the comments on that thread.
+  await expect
+    .poll(async () => (await emailTo(alice, editorEmail))?.subject ?? "", { timeout: 10_000 })
+    .toMatch(/Alice mentioned you in/);
+  const mail = (await emailTo(alice, editorEmail))!;
+  const link = new URL(mail.text.match(/View it: (\S+)/)![1]!);
+  await bob.page.goto(link.pathname + link.search);
+  await expect(panel(bob.page)).toBeVisible();
+  await expect(panel(bob.page).locator(".thread.is-active")).toContainText("could you check this?");
+  await expect(bob.page.locator(".comment-anchor.is-active")).toHaveText("launch");
+
+  // Turning the emails off keeps later mentions from being emailed.
+  await bob.page.goto("/");
+  await bob.page.getByRole("button", { name: "Account menu" }).click();
+  await bob.page.getByLabel("Email me when I’m mentioned").click(); // the box flips once the server has confirmed
+  await expect(bob.page.getByLabel("Email me when I’m mentioned")).not.toBeChecked();
+  await bob.page.reload(); // and it's remembered
+  await bob.page.getByRole("button", { name: "Account menu" }).click();
+  await expect(bob.page.getByLabel("Email me when I’m mentioned")).not.toBeChecked();
+
+  await selectWord(alice, "plan");
+  await floatingComment(alice).click();
+  const second = panel(alice).getByRole("combobox", { name: "Add a comment" });
+  await second.pressSequentially("@Ed");
+  await second.press("Enter");
+  await second.pressSequentially("and this one too");
+  await panel(alice).getByRole("button", { name: "Comment", exact: true }).click();
+  await expect(panel(alice).getByText("and this one too")).toBeVisible();
+  await alice.waitForTimeout(1500);
+  expect((await emailTo(alice, editorEmail))!.text).toBe(mail.text); // still the first email
 
   await ownerContext.close();
   await bob.context.close();

@@ -1,17 +1,26 @@
-import { useEffect, useRef, useState } from "react";
-import { COMMENT_BODY_MAX, canComment, type CommentAnchor, type CommentDTO, type CommentThreadDTO, type Role } from "@collabnotes/shared";
+import { useEffect, useId, useRef, useState } from "react";
+import {
+  COMMENT_BODY_MAX,
+  canComment,
+  type CommentAnchor,
+  type CommentDTO,
+  type CommentPerson,
+  type CommentThreadDTO,
+  type Role,
+} from "@collabnotes/shared";
 import { CheckIcon, CloseIcon } from "./Icons.js";
 import { ApiRequestError } from "../lib/apiClient.js";
 import type { AnchorRange } from "../lib/commentAnchors.js";
+import { activeMentionQuery, insertMention, matchPeople, mentionedIds, splitMentions } from "../lib/mentions.js";
 import { relativeTime } from "../lib/relativeTime.js";
 
 export type Draft = { quote: string; anchor: CommentAnchor | null };
 
 type Actions = {
-  createThread: (input: { quote: string; anchor: CommentAnchor | null; body: string }) => Promise<CommentThreadDTO>;
-  reply: (threadId: string, body: string) => Promise<CommentThreadDTO>;
+  createThread: (input: { quote: string; anchor: CommentAnchor | null; body: string; mentions: string[] }) => Promise<CommentThreadDTO>;
+  reply: (threadId: string, body: string, mentions: string[]) => Promise<CommentThreadDTO>;
   setResolved: (threadId: string, resolved: boolean) => Promise<CommentThreadDTO>;
-  editComment: (threadId: string, commentId: string, body: string) => Promise<CommentThreadDTO>;
+  editComment: (threadId: string, commentId: string, body: string, mentions: string[]) => Promise<CommentThreadDTO>;
   deleteComment: (threadId: string, commentId: string) => Promise<CommentThreadDTO>;
   deleteThread: (threadId: string) => Promise<void>;
 };
@@ -24,6 +33,8 @@ function Composer({
   label,
   submitLabel,
   initial = "",
+  initialMentions = [],
+  people,
   autoFocus = false,
   onSubmit,
   onCancel,
@@ -31,14 +42,43 @@ function Composer({
   label: string;
   submitLabel: string;
   initial?: string;
+  initialMentions?: CommentPerson[];
+  // Who "@" can suggest (never yourself).
+  people: CommentPerson[];
   autoFocus?: boolean;
-  onSubmit: (body: string) => Promise<void>;
+  onSubmit: (body: string, mentions: string[]) => Promise<void>;
   onCancel?: () => void;
 }) {
   const [value, setValue] = useState(initial);
+  const [caret, setCaret] = useState(initial.length);
+  const [highlight, setHighlight] = useState(0);
+  // The "@" position whose suggestions were dismissed with Escape, so they stay dismissed until it changes.
+  const [dismissedAt, setDismissedAt] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ref = useRef<HTMLTextAreaElement>(null);
+  // Who was picked from the list (id -> the name that was written). What is actually sent is
+  // the subset still named in the text when it's submitted.
+  const chosen = useRef(new Map<string, string>(initialMentions.map((p) => [p.id, p.displayName])));
+  const listId = useId();
+
+  const query = activeMentionQuery(value, caret);
+  const suggestions = query && people.length > 0 ? matchPeople(people, query.query) : [];
+  const listOpen = query !== null && suggestions.length > 0 && dismissedAt !== query.start;
+  const active = Math.min(highlight, Math.max(0, suggestions.length - 1));
+
+  function pick(person: CommentPerson) {
+    if (!query) return;
+    const next = insertMention(value, query.start, caret, person);
+    chosen.current.set(person.id, person.displayName);
+    setValue(next.text);
+    setCaret(next.caret);
+    setHighlight(0);
+    requestAnimationFrame(() => {
+      ref.current?.focus();
+      ref.current?.setSelectionRange(next.caret, next.caret);
+    });
+  }
 
   useEffect(() => {
     if (autoFocus) ref.current?.focus();
@@ -51,8 +91,10 @@ function Composer({
     setBusy(true);
     setError(null);
     try {
-      await onSubmit(value.trim());
+      const body = value.trim();
+      await onSubmit(body, mentionedIds(body, chosen.current));
       setValue("");
+      chosen.current.clear();
     } catch (err) {
       setError(messageOf(err));
     } finally {
@@ -68,26 +110,77 @@ function Composer({
         void submit();
       }}
     >
-      <textarea
-        ref={ref}
-        className="input comment-input"
-        aria-label={label}
-        placeholder={label}
-        rows={2}
-        maxLength={COMMENT_BODY_MAX}
-        value={value}
-        disabled={busy}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-            e.preventDefault();
-            void submit();
-          } else if (e.key === "Escape" && onCancel) {
-            e.stopPropagation();
-            onCancel();
-          }
-        }}
-      />
+      <div className="composer-field">
+        <textarea
+          ref={ref}
+          className="input comment-input"
+          role="combobox"
+          aria-label={label}
+          aria-autocomplete="list"
+          aria-expanded={listOpen}
+          aria-controls={listOpen ? listId : undefined}
+          aria-activedescendant={listOpen ? `${listId}-${active}` : undefined}
+          placeholder={people.length > 0 ? `${label} (@ to mention)` : label}
+          rows={2}
+          maxLength={COMMENT_BODY_MAX}
+          value={value}
+          disabled={busy}
+          onChange={(e) => {
+            setValue(e.target.value);
+            setCaret(e.target.selectionStart);
+            setHighlight(0);
+          }}
+          onSelect={(e) => setCaret(e.currentTarget.selectionStart)}
+          onKeyDown={(e) => {
+            if (listOpen) {
+              if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault();
+                const step = e.key === "ArrowDown" ? 1 : -1;
+                setHighlight((active + step + suggestions.length) % suggestions.length);
+                return;
+              }
+              if (e.key === "Enter" || e.key === "Tab") {
+                e.preventDefault();
+                pick(suggestions[active]!);
+                return;
+              }
+              if (e.key === "Escape") {
+                e.preventDefault();
+                e.stopPropagation();
+                setDismissedAt(query!.start);
+                return;
+              }
+            }
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              void submit();
+            } else if (e.key === "Escape" && onCancel) {
+              e.stopPropagation();
+              onCancel();
+            }
+          }}
+        />
+        {listOpen && (
+          <ul id={listId} role="listbox" aria-label="People to mention" className="mention-list">
+            {suggestions.map((person, i) => (
+              <li
+                key={person.id}
+                id={`${listId}-${i}`}
+                role="option"
+                aria-selected={i === active}
+                className={i === active ? "mention-option is-active" : "mention-option"}
+                // mousedown, not click: the textarea must not lose focus first.
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  pick(person);
+                }}
+              >
+                {person.displayName}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
       {error && (
         <p role="alert" className="field-error">
           {error}
@@ -113,6 +206,8 @@ function CommentItem({
   isFirst,
   mine,
   canModerate,
+  people,
+  mentionable,
   actions,
   onError,
 }: {
@@ -121,12 +216,15 @@ function CommentItem({
   isFirst: boolean;
   mine: boolean;
   canModerate: boolean;
+  people: CommentPerson[];
+  mentionable: CommentPerson[];
   actions: Actions;
   onError: (message: string | null) => void;
 }) {
   const [editing, setEditing] = useState(false);
   // The opening comment can only go with its whole thread (which is the thread's Delete).
   const canDelete = !isFirst && (mine || canModerate);
+  const mentioned = comment.mentions.map((id) => people.find((p) => p.id === id)).filter((p): p is CommentPerson => p !== undefined);
 
   async function remove() {
     onError(null);
@@ -151,16 +249,23 @@ function CommentItem({
           label="Edit comment"
           submitLabel="Save"
           initial={comment.body}
+          initialMentions={mentioned}
+          people={mentionable}
           autoFocus
           onCancel={() => setEditing(false)}
-          onSubmit={async (body) => {
-            await actions.editComment(thread.id, comment.id, body);
+          onSubmit={async (body, mentions) => {
+            await actions.editComment(thread.id, comment.id, body, mentions);
             setEditing(false);
           }}
         />
       ) : (
         <>
-          <p className="comment-body">{comment.body}</p>
+          <p className="comment-body">
+            {splitMentions(
+              comment.body,
+              mentioned.map((p) => p.displayName),
+            ).map((part, i) => (part.mention ? <span key={i} className="mention">{part.text}</span> : part.text))}
+          </p>
           {(mine || canDelete) && (
             <div className="comment-actions">
               {mine && (
@@ -188,6 +293,7 @@ function ThreadCard({
   orphaned,
   role,
   userId,
+  people,
   actions,
   onActivate,
   onShow,
@@ -198,6 +304,7 @@ function ThreadCard({
   orphaned: boolean;
   role: Role;
   userId: string;
+  people: CommentPerson[];
   actions: Actions;
   onActivate: () => void;
   onShow: () => void;
@@ -209,6 +316,7 @@ function ThreadCard({
   const resolved = thread.resolvedAt !== null;
   const canModerate = role === "owner";
   const canDeleteThread = thread.author.id === userId || canModerate;
+  const mentionable = people.filter((p) => p.id !== userId);
 
   // When a thread is opened from the document, bring its card into view.
   useEffect(() => {
@@ -246,6 +354,8 @@ function ThreadCard({
             isFirst={i === 0}
             mine={comment.author.id === userId && writable}
             canModerate={canModerate}
+            people={people}
+            mentionable={mentionable}
             actions={actions}
             onError={setError}
           />
@@ -265,7 +375,12 @@ function ThreadCard({
       )}
 
       {writable && !resolved && (
-        <Composer label="Reply" submitLabel="Reply" onSubmit={async (body) => void (await actions.reply(thread.id, body))} />
+        <Composer
+          label="Reply"
+          submitLabel="Reply"
+          people={mentionable}
+          onSubmit={async (body, mentions) => void (await actions.reply(thread.id, body, mentions))}
+        />
       )}
 
       <div className="thread-actions">
@@ -306,6 +421,7 @@ export function CommentsPanel({
   synced,
   role,
   userId,
+  people,
   draft,
   actions,
   onActivate,
@@ -321,6 +437,7 @@ export function CommentsPanel({
   synced: boolean;
   role: Role;
   userId: string;
+  people: CommentPerson[];
   draft: Draft | null;
   actions: Actions;
   onActivate: (threadId: string) => void;
@@ -333,6 +450,11 @@ export function CommentsPanel({
   const resolved = threads.filter((t) => t.resolvedAt !== null);
   const writable = canComment(role);
 
+  // A link to a resolved thread (or clicking one in the document) should show it, not hide it.
+  useEffect(() => {
+    if (activeId && threads.some((t) => t.id === activeId && t.resolvedAt !== null)) setShowResolved(true);
+  }, [activeId, threads]);
+
   const card = (thread: CommentThreadDTO) => {
     const range = ranges.get(thread.id);
     return (
@@ -344,6 +466,7 @@ export function CommentsPanel({
         orphaned={synced && thread.anchor !== null && range === null}
         role={role}
         userId={userId}
+        people={people}
         actions={actions}
         onActivate={() => onActivate(thread.id)}
         onShow={() => onShow(thread.id)}
@@ -366,10 +489,11 @@ export function CommentsPanel({
           <Composer
             label="Add a comment"
             submitLabel="Comment"
+            people={people.filter((p) => p.id !== userId)}
             autoFocus
             onCancel={onCancelDraft}
-            onSubmit={async (body) => {
-              const thread = await actions.createThread({ quote: draft.quote, anchor: draft.anchor, body });
+            onSubmit={async (body, mentions) => {
+              const thread = await actions.createThread({ quote: draft.quote, anchor: draft.anchor, body, mentions });
               onCancelDraft();
               onActivate(thread.id);
             }}

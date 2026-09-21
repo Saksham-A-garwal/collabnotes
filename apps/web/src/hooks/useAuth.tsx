@@ -11,6 +11,7 @@ type AuthContextValue = {
   // Step 2: exchange the code for a session. `isNewUser` means the account was just created.
   verifyCode: (email: string, code: string) => Promise<{ isNewUser: boolean }>;
   updateDisplayName: (displayName: string) => Promise<void>;
+  setEmailMentions: (emailMentions: boolean) => Promise<void>;
   loginWithGoogleCode: (code: string) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -45,6 +46,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(updated);
   }, []);
 
+  const setEmailMentions = useCallback(async (emailMentions: boolean) => {
+    const { user: updated } = await authApi.updateEmailMentions(emailMentions);
+    saveUser(updated);
+    setUser(updated);
+  }, []);
+
   const loginWithGoogleCode = useCallback(
     async (code: string) => {
       applyAuthResponse(await authApi.oauthGoogle(code));
@@ -72,10 +79,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       requestCode,
       verifyCode,
       updateDisplayName,
+      setEmailMentions,
       loginWithGoogleCode,
       logout,
     }),
-    [user, requestCode, verifyCode, updateDisplayName, loginWithGoogleCode, logout],
+    [user, requestCode, verifyCode, updateDisplayName, setEmailMentions, loginWithGoogleCode, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
