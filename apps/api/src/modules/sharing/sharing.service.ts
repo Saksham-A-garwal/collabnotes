@@ -53,7 +53,7 @@ export async function inviteByEmail(
   documentId: string,
   ownerId: string,
   email: string,
-  role: Role,
+  role: Exclude<Role, "owner">,
   opts: { notify?: boolean } = {},
 ): Promise<{ entry: DocumentAccessEntry; notification: InviteNotification }> {
   const doc = await requireOwner(documentId, ownerId);
@@ -92,7 +92,7 @@ export async function inviteByEmail(
       ownerId,
       inviterName: inviter?.display_name ?? "",
       email,
-      role: role === "viewer" ? "viewer" : "editor",
+      role,
       recipientHasAccount: existingUser !== null,
     });
   }

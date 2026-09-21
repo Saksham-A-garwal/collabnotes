@@ -1,4 +1,4 @@
-import type { Role } from "./types.js";
+import type { CommentThreadDTO, Role } from "./types.js";
 
 // socket.io event contract for the realtime sync core (Phase 2). Replaces
 // the raw-`ws` byte-envelope sketched in SRS §5.5 (0x00-0x03) — socket.io's
@@ -35,6 +35,10 @@ export type ServerToClientEvents = {
   // A live role change (upgrade or downgrade) for a still-connected member,
   // applied in place server-side — see roomManager.updateMemberRole.
   "document:role-changed": (payload: { documentId: string; role: Role }) => void;
+  // Comment threads changed (created, replied to, edited, resolved, reopened). Carries
+  // the whole thread so clients just replace their copy; `deleted` removes one.
+  "comment:thread-upserted": (payload: { documentId: string; thread: CommentThreadDTO }) => void;
+  "comment:thread-deleted": (payload: { documentId: string; threadId: string }) => void;
 };
 
 export type InterServerEvents = Record<string, never>;

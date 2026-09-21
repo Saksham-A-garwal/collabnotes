@@ -1,6 +1,7 @@
 // DTOs shared between apps/web and apps/api. Source of truth: SRS §5.6.
 
-export type Role = "owner" | "editor" | "viewer";
+// "commenter" can read and discuss but not change the document's content.
+export type Role = "owner" | "editor" | "commenter" | "viewer";
 
 export type UserPublic = {
   id: string;
@@ -90,3 +91,40 @@ export type SearchResult = {
 };
 
 export type SearchResponse = { results: SearchResult[] };
+
+// ------------------------------------------------------------------ comments
+
+export type CommentAuthor = { id: string; displayName: string };
+
+export type CommentDTO = {
+  id: string;
+  threadId: string;
+  author: CommentAuthor;
+  body: string;
+  // Users @mentioned in this comment (always people with access to the document).
+  mentions: string[];
+  createdAt: string;
+  editedAt: string | null;
+};
+
+// Where a thread is pinned in the document. Two Yjs "relative positions" (as JSON):
+// unlike a character offset they are stuck to the letters themselves, so they follow
+// the text as other people type around it. Opaque to the server; only the editor
+// interprets them, and it must treat them as untrusted (they may be stale or garbage).
+export type CommentAnchor = { from: unknown; to: unknown };
+
+export type CommentThreadDTO = {
+  id: string;
+  documentId: string;
+  author: CommentAuthor;
+  // The text that was selected, kept so a thread still makes sense if its anchor is lost
+  // (the text was deleted, or the document was restored to an older version).
+  quote: string;
+  anchor: CommentAnchor | null;
+  createdAt: string;
+  resolvedAt: string | null;
+  resolvedBy: CommentAuthor | null;
+  comments: CommentDTO[];
+};
+
+export type CommentsResponse = { threads: CommentThreadDTO[] };

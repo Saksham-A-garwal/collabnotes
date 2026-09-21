@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const shareRole = z.enum(["editor", "viewer"]); // SRS §7: never "owner" via this endpoint
+const shareRole = z.enum(["editor", "commenter", "viewer"]); // SRS §7: never "owner" via this endpoint
 const email = z.string().trim().toLowerCase().pipe(z.string().email("Must be a valid email address."));
 
 export const documentIdParamSchema = z.object({ id: z.string().uuid() });

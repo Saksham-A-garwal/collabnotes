@@ -1,11 +1,12 @@
 import type { Server as HttpServer } from "node:http";
 import jwt from "jsonwebtoken";
 import { Server } from "socket.io";
-import type {
-  ClientToServerEvents,
-  InterServerEvents,
-  ServerToClientEvents,
-  SocketData,
+import {
+  canEditContent,
+  type ClientToServerEvents,
+  type InterServerEvents,
+  type ServerToClientEvents,
+  type SocketData,
 } from "@collabnotes/shared";
 import { env } from "../config/env.js";
 import { findDocumentById, getUserRole } from "../db/queries/documents.js";
@@ -185,8 +186,8 @@ export function attachRealtime(httpServer: HttpServer) {
       }),
     );
 
-    // FR-17: reject (and log) any write from a socket whose role is viewer —
-    // enforced here regardless of what the UI allows a Viewer to attempt.
+    // FR-17: reject (and log) any write from a socket whose role can't edit content
+    // (viewer, commenter) — enforced here regardless of what the UI lets them attempt.
     socket.on(
       "sync:update",
       guarded<unknown>("sync:update", "other", async (payload) => {
@@ -195,16 +196,17 @@ export function attachRealtime(httpServer: HttpServer) {
         const member = roomManager.getMember(documentId, socket.id);
         if (!member) return;
 
-        if (member.role === "viewer") {
+        if (!canEditContent(member.role)) {
           console.warn(
             JSON.stringify({
               level: "warn",
-              message: "rejected update from viewer",
+              message: "rejected update from a read-only role",
+              role: member.role,
               documentId,
               userId: socket.data.userId,
             }),
           );
-          reject(documentId, "FORBIDDEN", "Viewers cannot edit this document.");
+          reject(documentId, "FORBIDDEN", "You have read-only access to this document.");
           return;
         }
 

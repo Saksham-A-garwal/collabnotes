@@ -12,6 +12,7 @@ import {
   handleSearchDocuments,
 } from "./documents.controller.js";
 import { createDocumentSchema, documentIdParamSchema, renameDocumentSchema, searchQuerySchema } from "./documents.schema.js";
+import { commentsRouter } from "../comments/comments.routes.js";
 import { snapshotsRouter } from "../snapshots/snapshots.routes.js";
 import { sharingRouter } from "../sharing/sharing.routes.js";
 
@@ -48,4 +49,5 @@ documentsRouter.delete(
 );
 
 documentsRouter.use("/:id/snapshots", snapshotsRouter);
+documentsRouter.use("/:id/comments", commentsRouter);
 documentsRouter.use("/:id", sharingRouter);

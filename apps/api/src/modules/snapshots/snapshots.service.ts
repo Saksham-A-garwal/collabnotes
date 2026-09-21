@@ -1,4 +1,4 @@
-import { ApiError, type DocumentSummary, type SnapshotSummary } from "@collabnotes/shared";
+import { ApiError, canEditContent, type DocumentSummary, type SnapshotSummary } from "@collabnotes/shared";
 import { findDocumentById, toDocumentSummary } from "../../db/queries/documents.js";
 import { findSnapshotById, listSnapshots, toSnapshotSummary } from "../../db/queries/snapshots.js";
 import { getRoomManager } from "../../realtime/index.js";
@@ -12,15 +12,15 @@ export async function listSnapshotsForUser(documentId: string, userId: string): 
   return rows.map(toSnapshotSummary);
 }
 
-// FR-25/FR-26: Owner/Editor can restore, Viewer cannot.
+// FR-25/FR-26: Owner/Editor can restore; Commenter and Viewer cannot (restoring rewrites content).
 export async function restoreSnapshotForUser(
   documentId: string,
   userId: string,
   snapshotId: string,
 ): Promise<DocumentSummary> {
   const { role } = await getDocumentForUser(documentId, userId);
-  if (role === "viewer") {
-    throw new ApiError("FORBIDDEN", "Viewers cannot restore a version.");
+  if (!canEditContent(role)) {
+    throw new ApiError("FORBIDDEN", "Only owners and editors can restore a version.");
   }
 
   const snapshot = await findSnapshotById(documentId, snapshotId);

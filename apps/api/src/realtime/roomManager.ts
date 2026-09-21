@@ -3,6 +3,7 @@ import * as Y from "yjs";
 import type { Server, Socket } from "socket.io";
 import type {
   ClientToServerEvents,
+  CommentThreadDTO,
   InterServerEvents,
   Role,
   ServerToClientEvents,
@@ -39,6 +40,9 @@ function updatesChannel(documentId: string): string {
 }
 function awarenessChannel(documentId: string): string {
   return `doc:${documentId}:awareness`;
+}
+function commentsChannel(documentId: string): string {
+  return `doc:${documentId}:comments`;
 }
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
@@ -83,6 +87,18 @@ export function createRoomManager(io: IoServer) {
     }
   }
 
+  // Same fail-soft contract as publish(): a Redis problem never breaks the request.
+  async function publishJson(channel: string, message: object): Promise<void> {
+    if (!env.REDIS_RELAY) return;
+    try {
+      await redisPub.publish(channel, JSON.stringify({ instanceId: INSTANCE_ID, ...message }));
+    } catch (err) {
+      console.warn(
+        JSON.stringify({ level: "warn", message: "redis publish failed; continuing single-instance", channel, error: (err as Error).message }),
+      );
+    }
+  }
+
   async function getOrCreateRoom(documentId: string): Promise<Room> {
     const existing = rooms.get(documentId);
     if (existing) return existing;
@@ -113,9 +129,19 @@ export function createRoomManager(io: IoServer) {
         const update = new Uint8Array(Buffer.from(dataBase64, "base64"));
         io.to(roomName(documentId)).emit("awareness:update", { documentId, update: toArrayBuffer(update) });
       });
+      // Comment changes made on another server instance reach this instance's sockets too.
+      channelHandlers.set(commentsChannel(documentId), (raw) => {
+        const msg = JSON.parse(raw) as { instanceId: string; kind: "upserted" | "deleted"; thread?: CommentThreadDTO; threadId?: string };
+        if (msg.instanceId === INSTANCE_ID) return;
+        if (msg.kind === "upserted" && msg.thread) {
+          io.to(roomName(documentId)).emit("comment:thread-upserted", { documentId, thread: msg.thread });
+        } else if (msg.kind === "deleted" && msg.threadId) {
+          io.to(roomName(documentId)).emit("comment:thread-deleted", { documentId, threadId: msg.threadId });
+        }
+      });
       if (env.REDIS_RELAY) {
         try {
-          await redisSub.subscribe(updatesChannel(documentId), awarenessChannel(documentId));
+          await redisSub.subscribe(updatesChannel(documentId), awarenessChannel(documentId), commentsChannel(documentId));
         } catch (err) {
           // Opening a document must not depend on Redis being reachable.
           console.warn(
@@ -205,6 +231,18 @@ export function createRoomManager(io: IoServer) {
       await createSnapshot(documentId, room.doc, triggeredBy);
       dirty.delete(documentId);
       searchIndexer.schedule(documentId);
+    },
+
+    // Comment changes go to everyone in the document's room (and, over Redis, to other
+    // instances). Best effort: the REST response is what the author relies on.
+    async broadcastThreadUpserted(documentId: string, thread: CommentThreadDTO): Promise<void> {
+      io.to(roomName(documentId)).emit("comment:thread-upserted", { documentId, thread });
+      await publishJson(commentsChannel(documentId), { kind: "upserted", thread });
+    },
+
+    async broadcastThreadDeleted(documentId: string, threadId: string): Promise<void> {
+      io.to(roomName(documentId)).emit("comment:thread-deleted", { documentId, threadId });
+      await publishJson(commentsChannel(documentId), { kind: "deleted", threadId });
     },
 
     // Exposed so tests (and a future graceful shutdown) can force the index up to date.

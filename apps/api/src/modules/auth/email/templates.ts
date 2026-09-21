@@ -180,7 +180,7 @@ export function renderSignInCodeEmail(input: SignInCodeEmailInput): { subject: s
 export type InviteEmailInput = {
   inviterName: string;
   documentTitle: string;
-  role: "editor" | "viewer";
+  role: "editor" | "commenter" | "viewer";
   recipientEmail: string;
   // False when nothing has signed in with this address yet — the email then also
   // explains how signing in works, since they have no account to open it from.
@@ -194,7 +194,10 @@ export function renderInviteEmail(input: InviteEmailInput): { subject: string; h
   const { role, documentUrl, appUrl, recipientHasAccount } = input;
   const inviter = input.inviterName.trim() || "Someone";
   const title = input.documentTitle.trim() || "Untitled document";
-  const can = role === "editor" ? "edit" : "view";
+  // "edit", "comment on", "view" read naturally after "invited you to"; the bare
+  // verb is what fits "You can ...".
+  const can = role === "editor" ? "edit" : role === "commenter" ? "comment on" : "view";
+  const canShort = role === "editor" ? "edit" : role === "commenter" ? "comment" : "view";
   const subject = `${subjectSafe(inviter, 40)} invited you to “${subjectSafe(title, 60)}”`;
 
   const inviterHtml = escapeHtml(inviter);
@@ -210,7 +213,7 @@ export function renderInviteEmail(input: InviteEmailInput): { subject: string; h
                 <td class="bg-code" style="background-color:#F7F7F5;border:1px solid #E9E9E7;border-radius:10px;padding:16px 18px;">
                   <div class="text-muted" style="font-family:${SANS};font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6B6A66;">Document</div>
                   <div class="text-strong" style="margin-top:4px;font-family:${SANS};font-size:18px;line-height:1.35;font-weight:600;color:#37352F;word-break:break-word;">${escapeHtml(title)}</div>
-                  <div class="text-muted" style="margin-top:6px;font-family:${SANS};font-size:13px;color:#6B6A66;">You can ${can} &middot; Shared by ${inviterHtml}</div>
+                  <div class="text-muted" style="margin-top:6px;font-family:${SANS};font-size:13px;color:#6B6A66;">You can ${canShort} &middot; Shared by ${inviterHtml}</div>
                 </td>
               </tr>
             </table>
@@ -240,7 +243,7 @@ export function renderInviteEmail(input: InviteEmailInput): { subject: string; h
     `${inviter} invited you to ${can} a document on CollabNotes:`,
     "",
     `    ${title}`,
-    `    You can ${can} - shared by ${inviter}`,
+    `    You can ${canShort} - shared by ${inviter}`,
     "",
     `Open it: ${documentUrl}`,
     ...(recipientHasAccount

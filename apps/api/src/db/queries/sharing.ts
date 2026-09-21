@@ -6,7 +6,7 @@ export type AccessRow = {
   document_id: string;
   user_id: string | null;
   invited_email: string | null;
-  role: "editor" | "viewer";
+  role: "editor" | "commenter" | "viewer";
   invited_at: Date;
   display_name: string | null;
   email: string | null;

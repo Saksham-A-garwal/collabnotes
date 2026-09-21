@@ -135,7 +135,14 @@ export class TestClient {
     this.socket.on("sync:update", ({ update }: { update: ArrayBuffer }) =>
       Y.applyUpdate(this.doc, new Uint8Array(update), REMOTE),
     );
-    for (const name of ["document:error", "document:deleted", "document:access-revoked", "document:role-changed"]) {
+    for (const name of [
+      "document:error",
+      "document:deleted",
+      "document:access-revoked",
+      "document:role-changed",
+      "comment:thread-upserted",
+      "comment:thread-deleted",
+    ]) {
       this.socket.on(name, (payload: unknown) => this.events.push({ name, payload }));
     }
     this.doc.on("update", (update: Uint8Array, origin: unknown) => {

@@ -5,7 +5,7 @@ import { pool } from "../pool.js";
 export type ShareLinkRow = {
   token: string;
   document_id: string;
-  role: "editor" | "viewer";
+  role: "editor" | "commenter" | "viewer";
   created_at: Date;
   revoked: boolean;
 };
