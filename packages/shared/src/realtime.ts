@@ -38,6 +38,8 @@ export type ServerToClientEvents = {
   // Comment threads changed (created, replied to, edited, resolved, reopened). Carries
   // the whole thread so clients just replace their copy; `deleted` removes one.
   "comment:thread-upserted": (payload: { documentId: string; thread: CommentThreadDTO }) => void;
+  // Something new for you in the notification list (sent to all of your open connections).
+  "notification:new": () => void;
   "comment:thread-deleted": (payload: { documentId: string; threadId: string }) => void;
 };
 

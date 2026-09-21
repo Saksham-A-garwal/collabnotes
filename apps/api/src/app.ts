@@ -9,6 +9,7 @@ import { authRouter } from "./modules/auth/auth.routes.js";
 import { devOutboxRouter } from "./modules/dev/outbox.routes.js";
 import { documentsRouter } from "./modules/documents/documents.routes.js";
 import { shareRedeemRouter } from "./modules/sharing/sharing.routes.js";
+import { notificationsRouter } from "./modules/notifications/notifications.routes.js";
 import { healthRouter } from "./routes/health.js";
 
 export function createApp() {
@@ -38,6 +39,7 @@ export function createApp() {
   if (env.EMAIL_TRANSPORT === "outbox") app.use("/api/v1/dev", devOutboxRouter);
   app.use("/api/v1/documents", documentsRouter);
   app.use("/api/v1/share", shareRedeemRouter);
+  app.use("/api/v1/notifications", notificationsRouter);
 
   // Single-service deployment: serve the built SPA and fall back to
   // index.html for client-side routes (/documents/:id, /share/:token, ...).

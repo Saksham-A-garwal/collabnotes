@@ -41,6 +41,10 @@ function updatesChannel(documentId: string): string {
 function awarenessChannel(documentId: string): string {
   return `doc:${documentId}:awareness`;
 }
+// One socket room per person, so anything meant for them reaches every tab they have open.
+const userRoom = (userId: string): string => `user:${userId}`;
+const NOTIFY_CHANNEL = "notifications";
+
 function commentsChannel(documentId: string): string {
   return `doc:${documentId}:comments`;
 }
@@ -64,6 +68,18 @@ export function createRoomManager(io: IoServer) {
   redisSub.on("message", (channel: string, raw: string) => {
     channelHandlers.get(channel)?.(raw);
   });
+
+  // "You have a new notification", from any server instance, to that person's sockets here.
+  channelHandlers.set(NOTIFY_CHANNEL, (raw) => {
+    const msg = JSON.parse(raw) as { instanceId: string; userIds: string[] };
+    if (msg.instanceId === INSTANCE_ID) return;
+    for (const userId of msg.userIds) io.to(userRoom(userId)).emit("notification:new");
+  });
+  if (env.REDIS_RELAY) {
+    redisSub.subscribe(NOTIFY_CHANNEL).catch((err: unknown) => {
+      console.warn(JSON.stringify({ level: "warn", message: "redis subscribe failed for notifications; continuing single-instance", error: (err as Error).message }));
+    });
+  }
 
   // Redis is a transient bus, not a source of truth (Architecture §11): the
   // update is already applied, persisted and relayed to this instance's own
@@ -240,6 +256,19 @@ export function createRoomManager(io: IoServer) {
       await createSnapshot(documentId, room.doc, triggeredBy);
       dirty.delete(documentId);
       searchIndexer.schedule(documentId);
+    },
+
+    // Every connection joins its owner's personal room, for messages that are about the
+    // person rather than about one document.
+    joinPersonalRoom(socket: Socket, userId: string): void {
+      void socket.join(userRoom(userId));
+    },
+
+    // Tell these people (on any instance) that their notification list changed. Best effort:
+    // the list itself is what's authoritative, and the bell also refreshes on its own.
+    async notifyUsers(userIds: string[]): Promise<void> {
+      for (const userId of userIds) io.to(userRoom(userId)).emit("notification:new");
+      await publishJson(NOTIFY_CHANNEL, { userIds });
     },
 
     // Comment changes go to everyone in the document's room (and, over Redis, to other

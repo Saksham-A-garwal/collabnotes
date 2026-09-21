@@ -90,6 +90,7 @@ export function attachRealtime(httpServer: HttpServer) {
 
   io.on("connection", (socket) => {
     const joinedDocuments = new Set<string>();
+    roomManager.joinPersonalRoom(socket, socket.data.userId);
 
     // Three budgets, because the right response to "too much" differs:
     //  - overall: a person types ~15 updates/s and moves a cursor a few dozen

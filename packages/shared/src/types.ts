@@ -135,3 +135,20 @@ export type CommentsResponse = { threads: CommentThreadDTO[] };
 // Names only; email addresses are never exposed to commenters.
 export type CommentPerson = { id: string; displayName: string };
 export type PeopleResponse = { people: CommentPerson[] };
+
+// Something that happened to you in a document. Only mentions so far.
+export type NotificationDTO = {
+  id: string;
+  kind: "mention";
+  documentId: string;
+  documentTitle: string;
+  threadId: string;
+  actor: CommentAuthor | null;
+  // The text the thread is about, and the start of what was said.
+  quote: string;
+  excerpt: string;
+  createdAt: string;
+  readAt: string | null;
+};
+
+export type NotificationsResponse = { notifications: NotificationDTO[]; unreadCount: number };

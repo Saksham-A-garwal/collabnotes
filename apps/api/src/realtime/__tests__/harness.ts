@@ -142,6 +142,7 @@ export class TestClient {
       "document:role-changed",
       "comment:thread-upserted",
       "comment:thread-deleted",
+      "notification:new",
     ]) {
       this.socket.on(name, (payload: unknown) => this.events.push({ name, payload }));
     }

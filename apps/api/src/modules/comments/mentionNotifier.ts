@@ -36,6 +36,12 @@ export async function notifyMentions(params: {
 
   try {
     await createMentionNotifications({ userIds, documentId, threadId, commentId: params.commentId, actorId: author.id });
+    // Light up their bell right away if they have the app open.
+    try {
+      await getRoomManager().notifyUsers(userIds);
+    } catch {
+      // Realtime not attached (tests, scripts) or Redis down: the bell still refreshes by itself.
+    }
   } catch (err) {
     console.error(JSON.stringify({ level: "error", message: "mention notification failed", documentId, error: (err as Error).message }));
   }
