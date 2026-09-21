@@ -116,6 +116,9 @@ body {
   font-size: var(--text-xs);
   cursor: pointer;
   padding: var(--space-xs) var(--space-sm);
+  /* WCAG 2.2 target size (2.5.8): at least 24x24 CSS px; this is comfortably above. */
+  min-width: 44px;
+  min-height: 32px;
 }
 
 .btn {
@@ -258,6 +261,9 @@ body {
   font-size: var(--text-xs);
   padding: 2px var(--space-xs);
   cursor: pointer;
+  /* WCAG 2.2 target size (2.5.8): at least 24x24 CSS px. */
+  min-width: 44px;
+  min-height: 28px;
 }
 
 .empty-state {

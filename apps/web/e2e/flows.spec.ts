@@ -1,36 +1,18 @@
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   createDocument,
   editor,
   emailFor,
   expectDocText,
+  invite,
+  joinAsInvited,
   newUser,
   register,
   registerFromScratch,
+  shareButton,
+  shareDialog,
   typeInEditor,
 } from "./helpers.js";
-
-const shareButton = (page: Page) => page.getByRole("button", { name: "Share", exact: true });
-const shareDialog = (page: Page) => page.getByRole("dialog", { name: "Share document" });
-
-async function invite(page: Page, email: string, role: "Editor" | "Viewer" = "Editor"): Promise<void> {
-  await shareButton(page).click();
-  const dialog = shareDialog(page);
-  await dialog.getByLabel("Invite by email").fill(email);
-  await dialog.getByLabel("Role for invite").selectOption({ label: role });
-  await dialog.getByRole("button", { name: "Send" }).click();
-  await expect(dialog.getByText(email).first()).toBeVisible();
-}
-
-// Registers a user with an already-invited email and opens the shared document.
-async function joinAsInvited(browser: Browser, name: string) {
-  const user = await newUser(browser);
-  await registerFromScratch(user.page, name);
-  await user.page.getByRole("button", { name: /Untitled document/ }).first().click();
-  await user.page.waitForURL(/\/documents\//);
-  await expect(user.page.getByText("All changes saved")).toBeVisible();
-  return user;
-}
 
 // UIUX §4 — "Create → Share → Collaborate"
 test("Create → Share → Collaborate", async ({ browser }) => {

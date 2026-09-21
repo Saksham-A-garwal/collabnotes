@@ -5,6 +5,7 @@ import { useAuth } from "../hooks/useAuth.js";
 import { ApiRequestError } from "../lib/apiClient.js";
 import { documentsApi } from "../lib/documentsApi.js";
 import { relativeTime } from "../lib/relativeTime.js";
+import { loadEditorPage } from "./editorPageLoader.js";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -68,6 +69,14 @@ export default function DashboardPage() {
   const [creating, setCreating] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // The editor is its own chunk (see editorPageLoader.ts). Nearly everyone who
+  // reaches the dashboard opens a document next, so fetch it in the background
+  // once the dashboard has settled — off the critical path, ready on click.
+  useEffect(() => {
+    const t = window.setTimeout(() => void loadEditorPage(), 1000);
+    return () => window.clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) return;

@@ -65,3 +65,27 @@ export async function typeInEditor(page: Page, text: string): Promise<void> {
   await page.keyboard.press("Control+End");
   await page.keyboard.type(text);
 }
+
+export const shareButton = (page: Page) => page.getByRole("button", { name: "Share", exact: true });
+export const shareDialog = (page: Page) => page.getByRole("dialog", { name: "Share document" });
+
+export async function invite(page: Page, email: string, role: "Editor" | "Viewer" = "Editor"): Promise<void> {
+  await shareButton(page).click();
+  const dialog = shareDialog(page);
+  await dialog.getByLabel("Invite by email").fill(email);
+  await dialog.getByLabel("Role for invite").selectOption({ label: role });
+  await dialog.getByRole("button", { name: "Send" }).click();
+  await expect(dialog.getByText(email).first()).toBeVisible();
+}
+
+// Registers a user with an already-invited email and opens the shared document.
+export async function joinAsInvited(browser: Browser, name: string, opts: { colorScheme?: "light" | "dark" } = {}) {
+  const context = await browser.newContext({ colorScheme: opts.colorScheme });
+  const page = await context.newPage();
+  const user = { context, page };
+  await registerFromScratch(user.page, name);
+  await user.page.getByRole("button", { name: /Untitled document/ }).first().click();
+  await user.page.waitForURL(/\/documents\//);
+  await expect(user.page.getByText("All changes saved")).toBeVisible();
+  return user;
+}

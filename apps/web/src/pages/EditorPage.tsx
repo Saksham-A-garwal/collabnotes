@@ -169,6 +169,10 @@ export default function EditorPage() {
           ]
         : [StarterKit],
       editable: false,
+      // The name has to be on the contenteditable itself (which carries
+      // role="textbox"); a label on EditorContent's wrapper div doesn't reach it,
+      // leaving screen readers an unnamed text box (WCAG 4.1.2).
+      editorProps: { attributes: { "aria-label": "Document content" } },
     },
     [doc, provider],
   );
@@ -277,7 +281,7 @@ export default function EditorPage() {
       )}
 
       <main className="editor-canvas-wrap">
-        <EditorContent editor={editor} className="editor-canvas" aria-label="Document content" />
+        <EditorContent editor={editor} className="editor-canvas" />
       </main>
 
       <VersionHistoryPanel
