@@ -128,3 +128,9 @@ export async function joinAsInvited(browser: Browser, name: string, opts: { colo
   await expect(user.page.getByText("All changes saved")).toBeVisible();
   return user;
 }
+
+// The latest email the API "sent" to an address, or null if none was.
+export async function emailTo(page: Page, address: string): Promise<{ subject: string; text: string } | null> {
+  const res = await page.request.get(`${API}/dev/outbox`, { params: { to: address } });
+  return res.ok() ? ((await res.json()) as { subject: string; text: string }) : null;
+}

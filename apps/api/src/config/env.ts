@@ -57,6 +57,10 @@ const envSchema = z
     // Hard cap on emails sent per UTC day, across everyone — protects the
     // provider quota (Resend's free tier is 100/day) from being drained by abuse.
     EMAIL_DAILY_LIMIT: z.coerce.number().int().positive().default(90),
+    // Slots at the top of that daily budget that only sign-in codes may use.
+    // Invitation emails stop this many short of the cap, so a burst of invites
+    // can never leave someone unable to log in.
+    EMAIL_SIGNIN_RESERVE: z.coerce.number().int().min(0).default(30),
     // Minimum gap between codes for one address.
     OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().min(0).default(30),
   })

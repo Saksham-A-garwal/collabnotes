@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import type { DocumentAccessEntry, Role, ShareLink } from "@collabnotes/shared";
+import type { DocumentAccessEntry, InviteNotification, Role, ShareLink } from "@collabnotes/shared";
 import { CloseIcon } from "./Icons.js";
 import { useAuth } from "../hooks/useAuth.js";
 import { useDialogFocus } from "../hooks/useDialogFocus.js";
@@ -7,6 +7,29 @@ import { ApiRequestError } from "../lib/apiClient.js";
 import { sharingApi } from "../lib/sharingApi.js";
 
 type ShareRole = Exclude<Role, "owner">;
+
+// What to tell the owner after an invite. Sharing itself has always succeeded by
+// the time we get here; this is only about the optional email.
+function inviteMessage(email: string, notification: InviteNotification): { text: string; warn: boolean } {
+  switch (notification) {
+    case "sent":
+      return { text: `Invitation emailed to ${email}.`, warn: false };
+    case "not-requested":
+      return { text: `Shared with ${email}. They'll see it next time they sign in.`, warn: false };
+    case "unchanged":
+      return { text: `${email} already has this access.`, warn: false };
+    case "limited":
+      return {
+        text: `Shared with ${email}, but no email was sent — you've reached the limit for invitation emails. Send them the link below instead.`,
+        warn: true,
+      };
+    case "failed":
+      return {
+        text: `Shared with ${email}, but the email couldn't be sent. Try again later, or send them the link below.`,
+        warn: true,
+      };
+  }
+}
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -28,7 +51,9 @@ export function ShareModal({ documentId, onClose }: { documentId: string; onClos
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<ShareRole>("editor");
   const [inviting, setInviting] = useState(false);
-  const [inviteSent, setInviteSent] = useState(false);
+  // On by default: people expect to be told. Untick to share quietly.
+  const [notify, setNotify] = useState(true);
+  const [inviteResult, setInviteResult] = useState<{ text: string; warn: boolean } | null>(null);
 
   const [link, setLink] = useState<ShareLink | null>(null);
   const [linkRole, setLinkRole] = useState<ShareRole>("viewer");
@@ -60,11 +85,13 @@ export function ShareModal({ documentId, onClose }: { documentId: string; onClos
     e.preventDefault();
     setInviting(true);
     setError(null);
+    setInviteResult(null);
     try {
-      await sharingApi.invite(documentId, inviteEmail, inviteRole);
+      const { notification } = await sharingApi.invite(documentId, inviteEmail, inviteRole, notify);
+      // Stays until the next action (no timer): a message that fades on its own
+      // can vanish before it's been read (WCAG 2.2.1).
+      setInviteResult(inviteMessage(inviteEmail, notification));
       setInviteEmail("");
-      setInviteSent(true);
-      setTimeout(() => setInviteSent(false), 3000);
       await loadCollaborators();
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : "Couldn't send invite.");
@@ -112,7 +139,7 @@ export function ShareModal({ documentId, onClose }: { documentId: string; onClos
   async function handleRoleChange(entry: DocumentAccessEntry, role: ShareRole) {
     setError(null);
     try {
-      await sharingApi.invite(documentId, entry.email, role);
+      await sharingApi.invite(documentId, entry.email, role, false);
       await loadCollaborators();
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : "Couldn't change role.");
@@ -156,7 +183,10 @@ export function ShareModal({ documentId, onClose }: { documentId: string; onClos
             type="email"
             placeholder="Email address"
             value={inviteEmail}
-            onChange={(e) => setInviteEmail(e.target.value)}
+            onChange={(e) => {
+              setInviteEmail(e.target.value);
+              if (inviteResult) setInviteResult(null);
+            }}
             required
             style={{ flex: 1 }}
             aria-label="Invite by email"
@@ -173,10 +203,14 @@ export function ShareModal({ documentId, onClose }: { documentId: string; onClos
           <button type="submit" className="btn btn-primary" disabled={inviting || !inviteEmail}>
             {inviting ? "Sending…" : "Send"}
           </button>
+          <label className="check">
+            <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+            <span>Notify by email</span>
+          </label>
         </form>
-        {inviteSent && (
-          <p role="status" style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", margin: "var(--space-xs) 0 0" }}>
-            Invite sent.
+        {inviteResult && (
+          <p role="status" className={inviteResult.warn ? "invite-result warn" : "invite-result"}>
+            {inviteResult.text}
           </p>
         )}
 

@@ -13,8 +13,8 @@ import {
   supersedeOtherCodes,
 } from "../../db/queries/loginCodes.js";
 import { findOrCreateUserByEmail, type UserRow } from "../../db/queries/users.js";
-import { redisPub } from "../../lib/redis.js";
 import { sendEmail } from "./email/mailer.js";
+import { takeDailySlot } from "./email/quota.js";
 import { renderSignInCodeEmail } from "./email/templates.js";
 
 export const CODE_TTL_SECONDS = 10 * 60;
@@ -54,22 +54,6 @@ export function nameFromEmail(email: string): string {
 
 const frontendOrigin = (): string => env.CORS_ORIGIN.split(",")[0]!.trim();
 
-// Counts sends across everybody for the UTC day. It exists so that a script
-// hammering the endpoint with made-up addresses can't burn the provider's
-// quota (and with it, everyone's ability to sign in). Fails open: a Redis
-// blip shouldn't block sign-in, and the provider enforces its own ceiling.
-async function withinDailyLimit(): Promise<boolean> {
-  const key = `email:daily:${new Date().toISOString().slice(0, 10)}`;
-  try {
-    const count = await redisPub.incr(key);
-    if (count === 1) await redisPub.expire(key, 2 * 24 * 60 * 60);
-    return count <= env.EMAIL_DAILY_LIMIT;
-  } catch (err) {
-    console.warn(JSON.stringify({ level: "warn", message: "daily email cap unavailable", error: (err as Error).message }));
-    return true;
-  }
-}
-
 // Same work and same response whether or not an account exists for `email`, so
 // this endpoint can't be used to find out who has an account.
 export async function requestLoginCode(email: string): Promise<RequestCodeResponse> {
@@ -85,7 +69,7 @@ export async function requestLoginCode(email: string): Promise<RequestCodeRespon
     }
   }
 
-  if (!(await withinDailyLimit())) {
+  if (!(await takeDailySlot("signin"))) {
     console.error(JSON.stringify({ level: "error", message: "daily email limit reached", limit: env.EMAIL_DAILY_LIMIT }));
     throw new ApiError(
       "SERVICE_UNAVAILABLE",

@@ -1200,3 +1200,46 @@ button.avatar:hover {
 .brand-glyph {
   stroke: var(--bg-canvas);
 }
+
+/* ------------------------------------------------- invite: notify checkbox */
+.share-invite-row {
+  flex-wrap: wrap;
+}
+
+.check {
+  flex: 0 0 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: var(--space-xs);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  width: fit-content;
+}
+
+.check input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.invite-result {
+  margin: var(--space-sm) 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--bg-chrome);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* A shared-but-not-emailed outcome isn't an error, but it is worth noticing. */
+.invite-result.warn {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}

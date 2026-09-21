@@ -1,4 +1,4 @@
-import type { DocumentAccessEntry, DocumentSummary, Role, ShareLink } from "@collabnotes/shared";
+import type { DocumentAccessEntry, DocumentSummary, InviteResponse, Role, ShareLink } from "@collabnotes/shared";
 import { apiFetch } from "./apiClient.js";
 
 type ShareRole = Exclude<Role, "owner">;
@@ -7,10 +7,11 @@ export const sharingApi = {
   listAccess: (documentId: string) =>
     apiFetch<{ collaborators: DocumentAccessEntry[] }>(`/documents/${documentId}/access`),
 
-  invite: (documentId: string, email: string, role: ShareRole) =>
-    apiFetch<{ access: DocumentAccessEntry }>(`/documents/${documentId}/share/invite`, {
+  // `notify` asks the server to also email them; the share itself never depends on it.
+  invite: (documentId: string, email: string, role: ShareRole, notify = false) =>
+    apiFetch<InviteResponse>(`/documents/${documentId}/share/invite`, {
       method: "POST",
-      body: { email, role },
+      body: { email, role, notify },
     }),
 
   createLink: (documentId: string, role: ShareRole) =>

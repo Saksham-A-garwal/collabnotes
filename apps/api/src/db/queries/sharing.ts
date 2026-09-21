@@ -91,6 +91,14 @@ export async function grantAccessByEmail(
   return { ...row, display_name: null, email };
 }
 
+export async function findPendingAccessByEmail(documentId: string, email: string): Promise<{ role: Role } | null> {
+  const result = await pool.query<{ role: Role }>(
+    "SELECT role FROM document_access WHERE document_id = $1 AND invited_email = $2",
+    [documentId, email],
+  );
+  return result.rows[0] ?? null;
+}
+
 export async function removeAccess(documentId: string, userId: string): Promise<boolean> {
   const result = await pool.query(
     "DELETE FROM document_access WHERE document_id = $1 AND user_id = $2",

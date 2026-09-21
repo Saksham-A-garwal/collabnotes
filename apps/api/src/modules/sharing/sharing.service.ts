@@ -2,12 +2,15 @@ import {
   ApiError,
   type DocumentAccessEntry,
   type DocumentSummary,
+  type InviteNotification,
   type Role,
   type ShareLink,
 } from "@collabnotes/shared";
 import { env } from "../../config/env.js";
 import { findDocumentById, getUserRole, toDocumentSummary, type DocumentRow } from "../../db/queries/documents.js";
 import {
+  findAccessByUserId,
+  findPendingAccessByEmail,
   grantAccessByEmail,
   grantAccessToUser,
   listAccess,
@@ -16,9 +19,10 @@ import {
   toAccessEntry,
 } from "../../db/queries/sharing.js";
 import { createShareLink, findShareLink, revokeShareLink } from "../../db/queries/shareLinks.js";
-import { findUserByEmail } from "../../db/queries/users.js";
+import { findUserByEmail, findUserById } from "../../db/queries/users.js";
 import { getRoomManager } from "../../realtime/index.js";
 import { getDocumentForUser } from "../documents/documents.service.js";
+import { notifyInvitee } from "./inviteNotifier.js";
 
 // SRS §3's role table has exactly one row for sharing — "Manage sharing
 // (invite/revoke)" — Owner only. The Share modal (UIUX §3.4) is an
@@ -50,21 +54,50 @@ export async function inviteByEmail(
   ownerId: string,
   email: string,
   role: Role,
-): Promise<DocumentAccessEntry> {
+  opts: { notify?: boolean } = {},
+): Promise<{ entry: DocumentAccessEntry; notification: InviteNotification }> {
   const doc = await requireOwner(documentId, ownerId);
 
   const existingUser = await findUserByEmail(email);
+  let entry: DocumentAccessEntry;
+  let changed: boolean; // did this call give them access they didn't already have?
+
   if (existingUser) {
     if (existingUser.id === doc.owner_id) {
       throw new ApiError("VALIDATION_ERROR", "The owner already has access to this document.");
     }
+    const previous = await findAccessByUserId(documentId, existingUser.id);
     const row = await grantAccessToUser(documentId, existingUser.id, role);
     getRoomManager().updateMemberRole(documentId, existingUser.id, role);
-    return toAccessEntry({ ...row, display_name: existingUser.display_name, email: existingUser.email });
+    entry = toAccessEntry({ ...row, display_name: existingUser.display_name, email: existingUser.email });
+    changed = previous?.role !== role;
+  } else {
+    const previous = await findPendingAccessByEmail(documentId, email);
+    entry = toAccessEntry(await grantAccessByEmail(documentId, email, role));
+    changed = previous?.role !== role;
   }
 
-  const row = await grantAccessByEmail(documentId, email, role);
-  return toAccessEntry(row);
+  // Sharing has succeeded by this point and stays succeeded whatever happens
+  // below: the email is a courtesy, never a precondition.
+  let notification: InviteNotification;
+  if (!opts.notify) {
+    notification = "not-requested";
+  } else if (!changed) {
+    notification = "unchanged"; // nothing new to tell them, so don't re-email
+  } else {
+    const inviter = await findUserById(ownerId);
+    notification = await notifyInvitee({
+      documentId,
+      documentTitle: doc.title,
+      ownerId,
+      inviterName: inviter?.display_name ?? "",
+      email,
+      role: role === "viewer" ? "viewer" : "editor",
+      recipientHasAccount: existingUser !== null,
+    });
+  }
+
+  return { entry, notification };
 }
 
 export async function createLink(documentId: string, ownerId: string, role: Role): Promise<ShareLink> {

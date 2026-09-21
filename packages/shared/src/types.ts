@@ -64,3 +64,17 @@ export type VerifyCodeResponse = AuthResponse & {
   // True when this sign-in just created the account (drives the name step).
   isNewUser: boolean;
 };
+
+// What happened to the optional "notify by email" on an invite. Sharing itself
+// always succeeds first; the email is best-effort and never blocks it.
+export type InviteNotification =
+  | "sent" // emailed
+  | "not-requested" // the owner unticked "Notify by email"
+  | "unchanged" // they already had exactly this access, so there is nothing new to tell them
+  | "limited" // suppressed by a rate limit or the daily email budget
+  | "failed"; // the email provider rejected or timed out
+
+export type InviteResponse = {
+  access: DocumentAccessEntry;
+  notification: InviteNotification;
+};

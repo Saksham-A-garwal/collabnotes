@@ -74,7 +74,7 @@ describe("sharing", () => {
     const email = "sharing-pending@test.local";
     emails.push(email);
 
-    const invited = await inviteByEmail(documentId, ownerId, email, "editor");
+    const { entry: invited } = await inviteByEmail(documentId, ownerId, email, "editor");
     expect(invited.pending).toBe(true);
     expect(invited.userId).toBeNull();
 

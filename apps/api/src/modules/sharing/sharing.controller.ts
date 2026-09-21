@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import type { InviteResponse } from "@collabnotes/shared";
 import {
   cancelPendingInvite,
   createLink,
@@ -15,8 +16,11 @@ export async function handleListAccess(req: Request, res: Response): Promise<voi
 }
 
 export async function handleInvite(req: Request, res: Response): Promise<void> {
-  const access = await inviteByEmail(req.params.id!, req.userId!, req.body.email, req.body.role);
-  res.status(201).json({ access });
+  const { entry, notification } = await inviteByEmail(req.params.id!, req.userId!, req.body.email, req.body.role, {
+    notify: req.body.notify,
+  });
+  const body: InviteResponse = { access: entry, notification };
+  res.status(201).json(body);
 }
 
 export async function handleCreateLink(req: Request, res: Response): Promise<void> {
