@@ -42,6 +42,12 @@ export const FileIcon = ({ className = "icon doc-icon" }: { className?: string }
   </Svg>
 );
 
+export const DownloadIcon = () => (
+  <Svg>
+    <path d="M12 3v12M7 10l5 5 5-5M4 20h16" />
+  </Svg>
+);
+
 export const ChevronLeftIcon = () => (
   <Svg>
     <path d="m15 18-6-6 6-6" />

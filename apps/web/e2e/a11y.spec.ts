@@ -63,6 +63,11 @@ for (const colorScheme of ["light", "dark"] as const) {
     await typeInEditor(alice, "Accessibility check.");
     await scan(alice, "editor");
 
+    await alice.getByRole("button", { name: "Export" }).click();
+    await expect(alice.getByRole("button", { name: "Download as Markdown (.md)" })).toBeVisible();
+    await scan(alice, "editor with the export menu open");
+    await alice.keyboard.press("Escape");
+
     await invite(alice, emailFor("Bob"));
     await scan(alice, "share dialog");
     await alice.keyboard.press("Escape");

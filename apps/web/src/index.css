@@ -1243,3 +1243,123 @@ button.avatar:hover {
   background: var(--accent-soft);
   border-color: var(--accent);
 }
+
+/* ------------------------------------------------------------------ export */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.export-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 6;
+  min-width: 250px;
+}
+
+.export-status {
+  margin: 4px 10px 2px;
+  min-height: 1.4em;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+/* The document title, shown only in print. */
+.print-title {
+  display: none;
+}
+
+/* Print / Save as PDF: everything except the document disappears, colours go
+   to plain black on white whatever the screen theme, and long documents break
+   across pages without splitting headings, quotes or code blocks. Loaded last so
+   it wins over the dark-mode token overrides. */
+@media print {
+  :root {
+    --bg-canvas: #ffffff;
+    --bg-chrome: #ffffff;
+    --bg-hover: #f1f1f1;
+    --border: #cccccc;
+    --text-primary: #000000;
+    --text-secondary: #444444;
+    --accent: #000000;
+    --danger: #000000;
+    color-scheme: light;
+  }
+
+  @page {
+    margin: 18mm 16mm;
+  }
+
+  body {
+    background: #ffffff;
+    color: #000000;
+  }
+
+  .skip-link,
+  .app-header,
+  .editor-chrome,
+  .notice,
+  .history-panel,
+  .modal-backdrop,
+  .popover,
+  .collaboration-cursor__caret,
+  .comments-panel,
+  .field-error {
+    display: none !important;
+  }
+
+  .editor-canvas-wrap {
+    display: block;
+    padding: 0;
+  }
+
+  .editor-canvas {
+    max-width: none;
+  }
+
+  .print-title {
+    display: block;
+    margin: 0 0 14pt;
+    font-size: 24pt;
+    line-height: 1.2;
+  }
+
+  .editor-canvas .ProseMirror {
+    min-height: 0;
+    font-size: 11.5pt;
+    line-height: 1.5;
+  }
+
+  .editor-canvas .ProseMirror h1,
+  .editor-canvas .ProseMirror h2,
+  .editor-canvas .ProseMirror h3 {
+    break-after: avoid;
+  }
+
+  .editor-canvas .ProseMirror pre,
+  .editor-canvas .ProseMirror blockquote,
+  .editor-canvas .ProseMirror li {
+    break-inside: avoid;
+  }
+
+  .editor-canvas .ProseMirror a {
+    color: #000000;
+    text-decoration: underline;
+  }
+
+  /* A printed link is useless unless you can see where it goes. */
+  .editor-canvas .ProseMirror a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    color: #444444;
+    word-break: break-all;
+  }
+}
