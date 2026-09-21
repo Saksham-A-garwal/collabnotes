@@ -8,6 +8,7 @@ import type {
   ServerToClientEvents,
   SocketData,
 } from "@collabnotes/shared";
+import { env } from "../config/env.js";
 import { redisPub, redisSub } from "../lib/redis.js";
 import { appendUpdate, createSnapshot, hydrateDocument } from "./persistence.js";
 import { buildRestoreDelta } from "./restoreContent.js";
@@ -55,12 +56,26 @@ export function createRoomManager(io: IoServer) {
     channelHandlers.get(channel)?.(raw);
   });
 
+  // Redis is a transient bus, not a source of truth (Architecture §11): the
+  // update is already applied, persisted and relayed to this instance's own
+  // sockets before we get here. So a Redis failure — hosted-quota exhausted,
+  // network blip, provider outage — must degrade to "single-instance mode",
+  // never throw. Left to propagate, a failed publish rejects inside an async
+  // socket handler, and an unhandled rejection kills the whole Node process
+  // and every live session with it.
   async function publish(channel: string, data: Uint8Array): Promise<void> {
+    if (!env.REDIS_RELAY) return;
     const envelope: RelayEnvelope = {
       instanceId: INSTANCE_ID,
       dataBase64: Buffer.from(data).toString("base64"),
     };
-    await redisPub.publish(channel, JSON.stringify(envelope));
+    try {
+      await redisPub.publish(channel, JSON.stringify(envelope));
+    } catch (err) {
+      console.warn(
+        JSON.stringify({ level: "warn", message: "redis publish failed; continuing single-instance", channel, error: (err as Error).message }),
+      );
+    }
   }
 
   async function getOrCreateRoom(documentId: string): Promise<Room> {
@@ -92,7 +107,16 @@ export function createRoomManager(io: IoServer) {
         const update = new Uint8Array(Buffer.from(dataBase64, "base64"));
         io.to(roomName(documentId)).emit("awareness:update", { documentId, update: toArrayBuffer(update) });
       });
-      await redisSub.subscribe(updatesChannel(documentId), awarenessChannel(documentId));
+      if (env.REDIS_RELAY) {
+        try {
+          await redisSub.subscribe(updatesChannel(documentId), awarenessChannel(documentId));
+        } catch (err) {
+          // Opening a document must not depend on Redis being reachable.
+          console.warn(
+            JSON.stringify({ level: "warn", message: "redis subscribe failed; continuing single-instance", documentId, error: (err as Error).message }),
+          );
+        }
+      }
 
       return room;
     })();

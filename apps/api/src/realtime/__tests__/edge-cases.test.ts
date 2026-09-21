@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { redisPub } from "../../lib/redis.js";
 import { deleteDocumentForUser } from "../../modules/documents/documents.service.js";
 import { inviteByEmail } from "../../modules/sharing/sharing.service.js";
 import { hydrateDocument } from "../persistence.js";
@@ -75,6 +76,37 @@ describe("SRS §8 edge cases", () => {
       expect(b.events.some((e) => e.name === "document:deleted")).toBe(true);
     } finally {
       await fx2.cleanup();
+    }
+  });
+
+  it("Redis failing (quota exhausted / outage) degrades to single-instance instead of crashing or losing edits", async () => {
+    // Real-world trigger: a hosted Redis free tier hits its command limit and
+    // every PUBLISH starts rejecting. That rejection used to escape an async
+    // socket handler — an unhandled rejection, which kills the Node process.
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    const publish = vi.spyOn(redisPub, "publish").mockRejectedValue(new Error("ERR max requests limit exceeded"));
+
+    try {
+      const a = new TestClient(fx, fx.ownerId);
+      const b = new TestClient(fx, fx.editorId);
+      await a.connect();
+      await b.connect();
+
+      const before = b.text();
+      a.insert("still-works;");
+      await waitFor(() => b.text() === before + "still-works;"); // local relay unaffected
+
+      await sleep(200);
+      expect(publish).toHaveBeenCalled(); // it really did try, and fail
+      expect(unhandled).toHaveLength(0); // ...without an escaped rejection
+
+      const persisted = await hydrateDocument(fx.documentId);
+      expect(persisted.getText("content").toString()).toContain("still-works;"); // durable too
+    } finally {
+      publish.mockRestore();
+      process.off("unhandledRejection", onUnhandled);
     }
   });
 });

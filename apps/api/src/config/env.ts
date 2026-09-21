@@ -20,14 +20,22 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   ACCESS_TOKEN_TTL: z.string().min(1).default("15m"),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
-  // Per-IP auth requests per 15 minutes (SRS §9.2 A07). E2E raises this: it
-  // registers a dozen users from one address.
   // Serve the built frontend (apps/web/dist) from this process, with SPA
   // fallback — a single-service deployment: same origin, no CORS.
   SERVE_WEB: z
     .enum(["true", "false"])
     .default("false")
     .transform((v) => v === "true"),
+  // Cross-instance Redis relay (Architecture §6.3). Only useful with more than
+  // one API instance; set to "false" for a single instance to stop publishing
+  // every edit and cursor move to Redis (which also spends hosted-Redis
+  // command quotas). Rate limiting still uses Redis either way.
+  REDIS_RELAY: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
+  // Per-IP auth requests per 15 minutes (SRS §9.2 A07). E2E raises this: it
+  // registers a dozen users from one address.
   AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
 });
 
