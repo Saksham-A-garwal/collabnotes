@@ -6,7 +6,8 @@ import {
   removeAwarenessStates,
 } from "y-protocols/awareness";
 import { io, type Socket } from "socket.io-client";
-import type { ClientToServerEvents, Role, ServerToClientEvents } from "@collabnotes/shared";
+import { canEditContent } from "@collabnotes/shared";
+import type { ClientToServerEvents, CommentThreadDTO, Role, ServerToClientEvents } from "@collabnotes/shared";
 import { loadSession } from "./authStorage.js";
 
 export type ConnectionStatus = "connecting" | "synced" | "reconnecting" | "offline";
@@ -44,6 +45,8 @@ export class RealtimeProvider {
   private roleListeners = new Set<(role: Role) => void>();
   private errorListeners = new Set<(message: string) => void>();
   private deletedListeners = new Set<(message: string) => void>();
+  private threadUpsertedListeners = new Set<(thread: CommentThreadDTO) => void>();
+  private threadDeletedListeners = new Set<(threadId: string) => void>();
 
   constructor(documentId: string, doc: Y.Doc) {
     this.documentId = documentId;
@@ -71,6 +74,8 @@ export class RealtimeProvider {
     this.socket.on("sync:update", this.handleRemoteUpdate);
     this.socket.on("awareness:update", this.handleRemoteAwareness);
     this.socket.on("awareness:query", this.handleAwarenessQuery);
+    this.socket.on("comment:thread-upserted", this.handleThreadUpserted);
+    this.socket.on("comment:thread-deleted", this.handleThreadDeleted);
 
     this.doc.on("update", this.handleLocalUpdate);
     this.awareness.on("update", this.handleLocalAwarenessUpdate);
@@ -162,9 +167,10 @@ export class RealtimeProvider {
   };
 
   // Role unknown (not joined yet) counts as "can write": edits made while
-  // offline are queued and must not be dropped.
+  // offline are queued and must not be dropped. Viewers and commenters both send
+  // nothing: the server would refuse it and show a bogus error.
   private canWrite(): boolean {
-    return this.role !== "viewer";
+    return this.role === null || canEditContent(this.role);
   }
 
   private handleLocalUpdate = (update: Uint8Array, origin: unknown): void => {
@@ -188,6 +194,16 @@ export class RealtimeProvider {
 
   private handleDeleted = ({ message }: { message: string }): void => {
     this.deletedListeners.forEach((cb) => cb(message));
+  };
+
+  private handleThreadUpserted = ({ documentId, thread }: { documentId: string; thread: CommentThreadDTO }): void => {
+    if (documentId !== this.documentId) return;
+    this.threadUpsertedListeners.forEach((cb) => cb(thread));
+  };
+
+  private handleThreadDeleted = ({ documentId, threadId }: { documentId: string; threadId: string }): void => {
+    if (documentId !== this.documentId) return;
+    this.threadDeletedListeners.forEach((cb) => cb(threadId));
   };
 
   private handleBeforeUnload = (): void => {
@@ -220,6 +236,16 @@ export class RealtimeProvider {
     return () => this.deletedListeners.delete(cb);
   }
 
+  onThreadUpserted(cb: (thread: CommentThreadDTO) => void): () => void {
+    this.threadUpsertedListeners.add(cb);
+    return () => this.threadUpsertedListeners.delete(cb);
+  }
+
+  onThreadDeleted(cb: (threadId: string) => void): () => void {
+    this.threadDeletedListeners.add(cb);
+    return () => this.threadDeletedListeners.delete(cb);
+  }
+
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
@@ -233,5 +259,7 @@ export class RealtimeProvider {
     this.roleListeners.clear();
     this.errorListeners.clear();
     this.deletedListeners.clear();
+    this.threadUpsertedListeners.clear();
+    this.threadDeletedListeners.clear();
   }
 }

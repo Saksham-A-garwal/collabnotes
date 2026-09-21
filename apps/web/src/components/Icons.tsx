@@ -42,6 +42,18 @@ export const FileIcon = ({ className = "icon doc-icon" }: { className?: string }
   </Svg>
 );
 
+export const CommentIcon = () => (
+  <Svg>
+    <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </Svg>
+);
+
+export const CheckIcon = () => (
+  <Svg>
+    <polyline points="20 6 9 17 4 12" />
+  </Svg>
+);
+
 export const DownloadIcon = () => (
   <Svg>
     <path d="M12 3v12M7 10l5 5 5-5M4 20h16" />

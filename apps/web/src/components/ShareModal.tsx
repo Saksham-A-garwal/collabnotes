@@ -198,6 +198,7 @@ export function ShareModal({ documentId, onClose }: { documentId: string; onClos
             aria-label="Role for invite"
           >
             <option value="editor">Editor</option>
+            <option value="commenter">Commenter</option>
             <option value="viewer">Viewer</option>
           </select>
           <button type="submit" className="btn btn-primary" disabled={inviting || !inviteEmail}>
@@ -242,6 +243,7 @@ export function ShareModal({ documentId, onClose }: { documentId: string; onClos
                 aria-label="Role for share link"
               >
                 <option value="viewer">Viewer</option>
+                <option value="commenter">Commenter</option>
                 <option value="editor">Editor</option>
               </select>
               <button type="button" className="btn btn-secondary" onClick={handleCreateLink} disabled={linkBusy}>
@@ -291,6 +293,7 @@ export function ShareModal({ documentId, onClose }: { documentId: string; onClos
                   aria-label={`Role for ${c.email}`}
                 >
                   <option value="editor">Editor</option>
+                  <option value="commenter">Commenter</option>
                   <option value="viewer">Viewer</option>
                 </select>
                 <button type="button" className="btn btn-danger" onClick={() => handleRemove(c)} aria-label={`Remove ${c.email}`}>

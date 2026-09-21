@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { codeFor, createDocument, editor, emailFor, invite, joinAsInvited, typeInEditor } from "./helpers.js";
+import { codeFor, createDocument, editor, emailFor, invite, joinAsInvited, selectWord, typeInEditor } from "./helpers.js";
 
 // Automated WCAG 2.x A/AA scan (04-UIUX.md §10) of every screen a person can
 // reach, in both colour schemes — contrast bugs often exist in only one. axe
@@ -78,6 +78,24 @@ for (const colorScheme of ["light", "dark"] as const) {
     // per-user background, the likeliest place for a contrast regression.
     await expect(alice.locator(".collaboration-cursor__label", { hasText: "Bob" })).toBeVisible();
     await scan(alice, "editor with a collaborator's caret");
+
+    // Comments: the floating button, the composer, a thread with its highlight, and a resolved one.
+    await selectWord(alice, "Accessibility");
+    await expect(alice.locator(".selection-comment-btn")).toBeVisible();
+    await scan(alice, "editor with the floating Comment button");
+    await alice.locator(".selection-comment-btn").click();
+    const comments = alice.getByRole("complementary", { name: "Comments" });
+    await scan(alice, "comments panel with the composer open");
+    await comments.getByRole("textbox", { name: "Add a comment" }).fill("Does this read well?");
+    await comments.getByRole("button", { name: "Comment", exact: true }).click();
+    await expect(comments.getByText("Does this read well?")).toBeVisible();
+    await expect(alice.locator(".comment-anchor")).toBeVisible();
+    await scan(alice, "editor with a highlighted comment and the panel open");
+    await comments.getByRole("button", { name: "Resolve" }).click();
+    await comments.getByRole("button", { name: /Show resolved/ }).click();
+    await expect(comments.getByText(/Resolved by/)).toBeVisible();
+    await scan(alice, "comments panel with a resolved thread");
+    await alice.getByRole("button", { name: "Comments", exact: true }).click(); // close the panel
 
     await alice.getByRole("button", { name: "History" }).click();
     await expect(alice.getByRole("dialog", { name: "Version history" })).toBeVisible();

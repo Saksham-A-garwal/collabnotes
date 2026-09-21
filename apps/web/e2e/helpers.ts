@@ -105,10 +105,30 @@ export async function typeInEditor(page: Page, text: string): Promise<void> {
   await page.keyboard.type(text);
 }
 
+// Selects `word` by setting the browser's own selection, which is what a mouse drag does.
+// (Works for read-only viewers too, unlike the keyboard.)
+export async function selectWord(page: Page, word: string): Promise<void> {
+  await page.evaluate((w) => {
+    const walker = document.createTreeWalker(document.querySelector(".ProseMirror")!, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const at = node.textContent!.indexOf(w);
+      if (at < 0) continue;
+      const range = document.createRange();
+      range.setStart(node, at);
+      range.setEnd(node, at + w.length);
+      const sel = window.getSelection()!;
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return;
+    }
+    throw new Error(`"${w}" not found`);
+  }, word);
+}
+
 export const shareButton = (page: Page) => page.getByRole("button", { name: "Share", exact: true });
 export const shareDialog = (page: Page) => page.getByRole("dialog", { name: "Share document" });
 
-export async function invite(page: Page, email: string, role: "Editor" | "Viewer" = "Editor"): Promise<void> {
+export async function invite(page: Page, email: string, role: "Editor" | "Commenter" | "Viewer" = "Editor"): Promise<void> {
   await shareButton(page).click();
   const dialog = shareDialog(page);
   await dialog.getByLabel("Invite by email").fill(email);
