@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import type { DocumentAccessEntry, Role, ShareLink } from "@collabnotes/shared";
+import { CloseIcon } from "./Icons.js";
 import { useAuth } from "../hooks/useAuth.js";
 import { useDialogFocus } from "../hooks/useDialogFocus.js";
 import { ApiRequestError } from "../lib/apiClient.js";
@@ -144,8 +145,8 @@ export function ShareModal({ documentId, onClose }: { documentId: string; onClos
       >
         <div className="modal-header">
           <strong>Share document</strong>
-          <button type="button" className="link-button" onClick={onClose} aria-label="Close share dialog">
-            Close
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close share dialog">
+            <CloseIcon />
           </button>
         </div>
 

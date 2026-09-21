@@ -26,6 +26,7 @@ export function ConnectionStatusDot({ status }: { status: ConnectionStatus }) {
         gap: "var(--space-xs)",
         fontSize: "var(--text-xs)",
         color: "var(--text-secondary)",
+        whiteSpace: "nowrap",
       }}
     >
       <span

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { SnapshotSummary } from "@collabnotes/shared";
+import { CloseIcon } from "./Icons.js";
 import { useDialogFocus } from "../hooks/useDialogFocus.js";
 import { ApiRequestError } from "../lib/apiClient.js";
 import { documentsApi } from "../lib/documentsApi.js";
@@ -68,8 +69,8 @@ function VersionHistoryPanelContent({
     <aside ref={panelRef} tabIndex={-1} className="history-panel" role="dialog" aria-label="Version history">
       <div className="history-panel-header">
         <strong>Version history</strong>
-        <button type="button" className="link-button" onClick={onClose} aria-label="Close version history">
-          Close
+        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close version history">
+          <CloseIcon />
         </button>
       </div>
 

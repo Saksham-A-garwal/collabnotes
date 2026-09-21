@@ -1,13 +1,16 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
-import type { UserPublic } from "@collabnotes/shared";
+import type { RequestCodeResponse, UserPublic } from "@collabnotes/shared";
 import { authApi } from "../lib/authApi.js";
-import { clearSession, loadSession, saveSession } from "../lib/authStorage.js";
+import { clearSession, loadSession, saveSession, saveUser } from "../lib/authStorage.js";
 
 type AuthContextValue = {
   user: UserPublic | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, displayName: string) => Promise<void>;
+  // Step 1 of email sign-in: send the code.
+  requestCode: (email: string) => Promise<RequestCodeResponse>;
+  // Step 2: exchange the code for a session. `isNewUser` means the account was just created.
+  verifyCode: (email: string, code: string) => Promise<{ isNewUser: boolean }>;
+  updateDisplayName: (displayName: string) => Promise<void>;
   loginWithGoogleCode: (code: string) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -25,19 +28,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const login = useCallback(
-    async (email: string, password: string) => {
-      applyAuthResponse(await authApi.login({ email, password }));
+  const requestCode = useCallback((email: string) => authApi.requestCode(email), []);
+
+  const verifyCode = useCallback(
+    async (email: string, code: string) => {
+      const res = await authApi.verifyCode(email, code);
+      applyAuthResponse(res);
+      return { isNewUser: res.isNewUser };
     },
     [applyAuthResponse],
   );
 
-  const register = useCallback(
-    async (email: string, password: string, displayName: string) => {
-      applyAuthResponse(await authApi.register({ email, password, displayName }));
-    },
-    [applyAuthResponse],
-  );
+  const updateDisplayName = useCallback(async (displayName: string) => {
+    const { user: updated } = await authApi.updateProfile(displayName);
+    saveUser(updated);
+    setUser(updated);
+  }, []);
 
   const loginWithGoogleCode = useCallback(
     async (code: string) => {
@@ -60,8 +66,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isAuthenticated: user !== null, login, register, loginWithGoogleCode, logout }),
-    [user, login, register, loginWithGoogleCode, logout],
+    () => ({
+      user,
+      isAuthenticated: user !== null,
+      requestCode,
+      verifyCode,
+      updateDisplayName,
+      loginWithGoogleCode,
+      logout,
+    }),
+    [user, requestCode, verifyCode, updateDisplayName, loginWithGoogleCode, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

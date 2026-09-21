@@ -1,4 +1,5 @@
 import { useEditorState, type Editor } from "@tiptap/react";
+import { CodeIcon, LinkIcon, ListIcon, OrderedListIcon, QuoteIcon, StrikeIcon } from "./Icons.js";
 
 // <Toolbar disabled editor /> — 04-UIUX.md §3.3: bold, italic, underline,
 // heading dropdown, bullet/numbered lists, link. Disabled/hidden entirely
@@ -15,6 +16,9 @@ export function Toolbar({ editor, disabled }: { editor: Editor | null; disabled:
       bold: e?.isActive("bold") ?? false,
       italic: e?.isActive("italic") ?? false,
       underline: e?.isActive("underline") ?? false,
+      strike: e?.isActive("strike") ?? false,
+      code: e?.isActive("code") ?? false,
+      blockquote: e?.isActive("blockquote") ?? false,
       bulletList: e?.isActive("bulletList") ?? false,
       orderedList: e?.isActive("orderedList") ?? false,
       link: e?.isActive("link") ?? false,
@@ -51,36 +55,10 @@ export function Toolbar({ editor, disabled }: { editor: Editor | null; disabled:
     if (url) editor.chain().focus().setLink({ href: url }).run();
   }
 
+  const btn = (pressed: boolean) => (pressed ? "toolbar-btn active" : "toolbar-btn");
+
   return (
     <div role="toolbar" aria-label="Formatting" className="editor-toolbar">
-      <button
-        type="button"
-        aria-label="Bold"
-        aria-pressed={active.bold}
-        className={active.bold ? "toolbar-btn active" : "toolbar-btn"}
-        onClick={() => editor.chain().focus().toggleBold().run()}
-      >
-        <strong>B</strong>
-      </button>
-      <button
-        type="button"
-        aria-label="Italic"
-        aria-pressed={active.italic}
-        className={active.italic ? "toolbar-btn active" : "toolbar-btn"}
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-      >
-        <em>I</em>
-      </button>
-      <button
-        type="button"
-        aria-label="Underline"
-        aria-pressed={active.underline}
-        className={active.underline ? "toolbar-btn active" : "toolbar-btn"}
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
-      >
-        <span style={{ textDecoration: "underline" }}>U</span>
-      </button>
-
       <select
         aria-label="Heading level"
         className="toolbar-select"
@@ -93,32 +71,44 @@ export function Toolbar({ editor, disabled }: { editor: Editor | null; disabled:
         <option value="3">H3</option>
       </select>
 
-      <button
-        type="button"
-        aria-label="Bullet list"
-        aria-pressed={active.bulletList}
-        className={active.bulletList ? "toolbar-btn active" : "toolbar-btn"}
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-      >
-        •≡
-      </button>
-      <button
-        type="button"
-        aria-label="Numbered list"
-        aria-pressed={active.orderedList}
-        className={active.orderedList ? "toolbar-btn active" : "toolbar-btn"}
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-      >
-        1≡
-      </button>
-      <button
-        type="button"
-        aria-label="Link"
-        aria-pressed={active.link}
-        className={active.link ? "toolbar-btn active" : "toolbar-btn"}
-        onClick={toggleLink}
-      >
-        🔗
+      <span className="toolbar-sep" role="separator" aria-orientation="vertical" />
+
+      <div className="toolbar-group">
+        <button type="button" aria-label="Bold" aria-pressed={active.bold} className={btn(active.bold)} onClick={() => editor.chain().focus().toggleBold().run()}>
+          <strong>B</strong>
+        </button>
+        <button type="button" aria-label="Italic" aria-pressed={active.italic} className={btn(active.italic)} onClick={() => editor.chain().focus().toggleItalic().run()}>
+          <em style={{ fontFamily: "Georgia, serif" }}>I</em>
+        </button>
+        <button type="button" aria-label="Underline" aria-pressed={active.underline} className={btn(active.underline)} onClick={() => editor.chain().focus().toggleUnderline().run()}>
+          <span style={{ textDecoration: "underline" }}>U</span>
+        </button>
+        <button type="button" aria-label="Strikethrough" aria-pressed={active.strike} className={btn(active.strike)} onClick={() => editor.chain().focus().toggleStrike().run()}>
+          <StrikeIcon />
+        </button>
+        <button type="button" aria-label="Code" aria-pressed={active.code} className={btn(active.code)} onClick={() => editor.chain().focus().toggleCode().run()}>
+          <CodeIcon />
+        </button>
+      </div>
+
+      <span className="toolbar-sep" role="separator" aria-orientation="vertical" />
+
+      <div className="toolbar-group">
+        <button type="button" aria-label="Bullet list" aria-pressed={active.bulletList} className={btn(active.bulletList)} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+          <ListIcon />
+        </button>
+        <button type="button" aria-label="Numbered list" aria-pressed={active.orderedList} className={btn(active.orderedList)} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+          <OrderedListIcon />
+        </button>
+        <button type="button" aria-label="Quote" aria-pressed={active.blockquote} className={btn(active.blockquote)} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
+          <QuoteIcon />
+        </button>
+      </div>
+
+      <span className="toolbar-sep" role="separator" aria-orientation="vertical" />
+
+      <button type="button" aria-label="Link" aria-pressed={active.link} className={btn(active.link)} onClick={toggleLink}>
+        <LinkIcon />
       </button>
     </div>
   );

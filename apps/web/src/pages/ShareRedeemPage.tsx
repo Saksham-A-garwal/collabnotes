@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { BrandMark } from "../components/BrandMark.js";
 import { useAuth } from "../hooks/useAuth.js";
+import { useDocumentTitle } from "../hooks/useDocumentTitle.js";
 import { ApiRequestError } from "../lib/apiClient.js";
 import { sharingApi } from "../lib/sharingApi.js";
 
@@ -13,6 +15,7 @@ export default function ShareRedeemPage() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const attempted = useRef(false);
+  useDocumentTitle("Joining document");
 
   useEffect(() => {
     if (!isAuthenticated || attempted.current) return;
@@ -31,28 +34,18 @@ export default function ShareRedeemPage() {
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "var(--space-md)",
-        padding: "var(--space-lg)",
-      }}
-    >
+    <main className="center-page" id="main">
+      <BrandMark />
       {error ? (
         <>
-          <p role="alert" style={{ color: "var(--danger)" }}>
-            {error}
-          </p>
-          <button type="button" className="btn btn-primary" onClick={() => navigate("/", { replace: true })}>
+          <h1>This link can&rsquo;t be used</h1>
+          <p role="alert">{error}</p>
+          <button type="button" className="btn btn-primary btn-lg" onClick={() => navigate("/", { replace: true })}>
             Back to Dashboard
           </button>
         </>
       ) : (
-        <p style={{ color: "var(--text-secondary)" }}>Joining document…</p>
+        <p role="status">Joining document…</p>
       )}
     </main>
   );

@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { createDocument, editor, emailFor, invite, joinAsInvited, registerFromScratch, typeInEditor } from "./helpers.js";
+import { codeFor, createDocument, editor, emailFor, invite, joinAsInvited, typeInEditor } from "./helpers.js";
 
 // Automated WCAG 2.x A/AA scan (04-UIUX.md §10) of every screen a person can
 // reach, in both colour schemes — contrast bugs often exist in only one. axe
@@ -26,25 +26,35 @@ for (const colorScheme of ["light", "dark"] as const) {
   test(`Accessibility (${colorScheme}): every screen passes an axe WCAG 2.x A/AA scan`, async ({ browser }) => {
     const aliceContext = await browser.newContext({ colorScheme });
     const alice = await aliceContext.newPage();
+    const aliceEmail = emailFor("Alice");
 
-    // Sign-in and registration.
+    // Sign-in, in each of its states.
     await alice.goto("/login");
-    await expect(alice.getByRole("button", { name: "Sign in" })).toBeVisible();
+    await expect(alice.getByRole("heading", { name: "Log in or sign up" })).toBeVisible();
     await scan(alice, "sign-in");
-    await alice.getByRole("button", { name: "Register" }).click();
-    await expect(alice.getByRole("button", { name: "Create account" })).toBeVisible();
-    await scan(alice, "register");
-    // Validation errors are their own state (UIUX §7). The submit button only
-    // enables once every field is non-empty, so fill in values that are invalid.
-    await alice.getByLabel("Name", { exact: true }).fill("A");
+
     await alice.getByLabel("Email", { exact: true }).fill("not-an-email");
-    await alice.getByLabel("Password", { exact: true }).fill("short");
-    await alice.getByRole("button", { name: "Create account" }).click();
+    await alice.getByRole("button", { name: "Continue", exact: true }).click();
     await expect(alice.getByText("Enter a valid email address.")).toBeVisible();
-    await scan(alice, "register with validation errors");
+    await scan(alice, "sign-in with a validation error");
+
+    await alice.getByLabel("Email", { exact: true }).fill(aliceEmail);
+    await alice.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(alice.getByRole("heading", { name: "Check your email" })).toBeVisible();
+    await scan(alice, "code entry");
+
+    const realCode = await codeFor(alice, aliceEmail);
+    await alice.getByLabel("Verification code").fill(realCode === "000000" ? "111111" : "000000");
+    await expect(alice.getByText("That code is incorrect or has expired.")).toBeVisible();
+    await scan(alice, "code entry with a wrong-code error");
+
+    await alice.getByLabel("Verification code").fill(realCode);
+    await expect(alice.getByRole("heading", { name: /What should we call you/ })).toBeVisible();
+    await scan(alice, "name step");
+    await alice.getByLabel("Your name").fill("Alice");
+    await alice.getByRole("button", { name: "Continue", exact: true }).click();
 
     // Dashboard.
-    await registerFromScratch(alice, "Alice");
     await expect(alice.getByRole("button", { name: "New document" }).first()).toBeVisible();
     await scan(alice, "dashboard (empty)");
 
@@ -72,6 +82,15 @@ for (const colorScheme of ["light", "dark"] as const) {
     await alice.getByRole("button", { name: "Back to Dashboard" }).click();
     await expect(alice.getByRole("button", { name: /Untitled document/ }).first()).toBeVisible();
     await scan(alice, "dashboard (with a document)");
+
+    await alice.getByRole("button", { name: "Account menu" }).click();
+    await expect(alice.getByRole("button", { name: "Log out" })).toBeVisible();
+    await scan(alice, "dashboard with the account menu open");
+
+    // Not-found.
+    await alice.goto("/no/such/page");
+    await expect(alice.getByRole("heading", { name: "Page not found" })).toBeVisible();
+    await scan(alice, "not found");
 
     await aliceContext.close();
     await bob.context.close();

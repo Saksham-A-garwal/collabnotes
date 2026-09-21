@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { DocumentSummary } from "@collabnotes/shared";
+import { Brand } from "../components/BrandMark.js";
+import { EmptyPagesArt, FileIcon, LogOutIcon, PlusIcon, SearchIcon } from "../components/Icons.js";
 import { useAuth } from "../hooks/useAuth.js";
+import { useDocumentTitle } from "../hooks/useDocumentTitle.js";
 import { ApiRequestError } from "../lib/apiClient.js";
 import { documentsApi } from "../lib/documentsApi.js";
 import { relativeTime } from "../lib/relativeTime.js";
@@ -14,7 +17,15 @@ function initials(name: string): string {
   return (first + last).toUpperCase();
 }
 
-function DocumentCard({
+function greeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 5) return "Working late";
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+function DocumentRow({
   doc,
   onOpen,
   onDelete,
@@ -29,18 +40,20 @@ function DocumentCard({
   // inside another (invalid for assistive tech, and a stray Enter on the
   // delete button used to bubble into "open").
   return (
-    <div className="document-card">
-      <button type="button" className="document-open" onClick={onOpen}>
-        <span className="title">{doc.title}</span>
-        <span className="meta">
-          Updated {relativeTime(doc.updatedAt)}
-          {doc.role !== "owner" && ` · ${doc.role}`}
+    <div className="doc-row">
+      <button type="button" className="doc-open" onClick={onOpen}>
+        <FileIcon />
+        <span className="doc-title">{doc.title}</span>
+        <span className="doc-meta">
+          {doc.role !== "owner" && <span className="badge">{doc.role}</span>}
+          <span className="doc-updated">Updated {relativeTime(doc.updatedAt)}</span>
         </span>
       </button>
       {doc.role === "owner" && (
         <button
           type="button"
           className="delete-btn"
+          data-confirming={confirming}
           onClick={() => {
             if (confirming) {
               onDelete();
@@ -62,6 +75,7 @@ function DocumentCard({
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  useDocumentTitle("Documents");
 
   const [documents, setDocuments] = useState<DocumentSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -140,100 +154,114 @@ export default function DashboardPage() {
     }
   }
 
+  const firstName = user?.displayName.trim().split(/\s+/)[0] ?? "";
+
   return (
     <div>
-      <header className="dashboard-header">
-        <strong style={{ fontSize: "var(--text-lg)" }}>CollabNotes</strong>
-        <div ref={menuRef} style={{ position: "relative" }}>
-          <button
-            type="button"
-            className="avatar"
-            onClick={() => setMenuOpen((o) => !o)}
-            aria-label="Account menu"
-            aria-expanded={menuOpen}
-          >
-            {user ? initials(user.displayName) : "?"}
+      <header className="app-header">
+        <Brand />
+        <div className="app-header-actions">
+          <button type="button" className="btn btn-primary" onClick={handleCreate} disabled={creating}>
+            <PlusIcon />
+            {creating ? "Creating…" : "New document"}
           </button>
-          {menuOpen && (
-            <div
-              className="card"
-              style={{
-                position: "absolute",
-                right: 0,
-                top: "calc(100% + var(--space-xs))",
-                padding: "var(--space-sm)",
-                zIndex: 1,
-                minWidth: 160,
-              }}
+          <div ref={menuRef} style={{ position: "relative" }}>
+            <button
+              type="button"
+              className="avatar"
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-label="Account menu"
+              aria-expanded={menuOpen}
+              aria-haspopup="true"
             >
-              <p style={{ margin: "0 0 var(--space-sm)", fontSize: "var(--text-sm)" }}>
-                {user?.displayName}
-              </p>
-              <button type="button" className="btn btn-secondary btn-block" onClick={() => logout()}>
-                Log out
-              </button>
-            </div>
-          )}
+              {user ? initials(user.displayName) : "?"}
+            </button>
+            {menuOpen && (
+              <div className="popover" style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 6 }}>
+                <div style={{ padding: "8px 10px 10px" }}>
+                  <p style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>{user?.displayName}</p>
+                  <p style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", overflowWrap: "anywhere" }}>{user?.email}</p>
+                </div>
+                <button type="button" className="popover-menu-item" onClick={() => logout()}>
+                  <LogOutIcon />
+                  Log out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
-      <div className="dashboard-toolbar">
-        <button type="button" className="btn btn-primary" onClick={handleCreate} disabled={creating}>
-          {creating ? "Creating…" : "New document"}
-        </button>
-        <input
-          className="input"
-          type="search"
-          placeholder="Search documents"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          style={{ maxWidth: 280 }}
-          aria-label="Search documents by title"
-        />
-      </div>
+      <main className="page" id="main">
+        <h1 className="page-title">
+          {greeting()}
+          {firstName ? `, ${firstName}` : ""}
+        </h1>
+        <p className="page-sub">Pick up where you left off, or start something new.</p>
 
-      {error && (
-        <p role="alert" className="field-error" style={{ padding: "0 var(--space-xl)" }}>
-          {error}{" "}
-          <button type="button" className="link-button" onClick={loadDocuments}>
-            Retry
-          </button>
-        </p>
-      )}
-
-      {documents === null && !error && (
-        <div className="document-grid" aria-busy="true">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="document-card" style={{ opacity: 0.5 }}>
-              <span className="title">Loading…</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {documents !== null && filtered.length === 0 && (
-        <div className="empty-state">
-          <p>{query ? "No documents match your search." : "Create your first document"}</p>
-          {!query && (
-            <button type="button" className="btn btn-primary" onClick={handleCreate} disabled={creating}>
-              New document
-            </button>
-          )}
-        </div>
-      )}
-
-      {documents !== null && filtered.length > 0 && (
-        <div className="document-grid">
-          {filtered.map((doc) => (
-            <DocumentCard
-              key={doc.id}
-              doc={doc}
-              onOpen={() => navigate(`/documents/${doc.id}`)}
-              onDelete={() => handleDelete(doc.id)}
+        <div className="page-toolbar">
+          <div className="search">
+            <SearchIcon />
+            <input
+              className="input"
+              type="search"
+              placeholder="Search documents"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search documents by title"
             />
-          ))}
+          </div>
         </div>
-      )}
+
+        {error && (
+          <p role="alert" className="field-error" style={{ marginBottom: "var(--space-md)" }}>
+            {error}{" "}
+            <button type="button" className="link-button" onClick={loadDocuments}>
+              Retry
+            </button>
+          </p>
+        )}
+
+        {documents === null && !error && (
+          <div aria-busy="true" aria-label="Loading documents">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="skeleton doc-skeleton" />
+            ))}
+          </div>
+        )}
+
+        {documents !== null && filtered.length === 0 && (
+          <div className="empty-state">
+            <EmptyPagesArt />
+            <h2>{query ? "No matches" : "No documents yet"}</h2>
+            <p>{query ? "No documents match your search." : "Create your first document and invite people to write with you."}</p>
+            {!query && (
+              <button type="button" className="btn btn-primary btn-lg" onClick={handleCreate} disabled={creating} style={{ marginTop: "var(--space-sm)" }}>
+                <PlusIcon />
+                New document
+              </button>
+            )}
+          </div>
+        )}
+
+        {documents !== null && filtered.length > 0 && (
+          <section aria-labelledby="docs-heading">
+            <h2 id="docs-heading" className="section-label">
+              {query ? "Results" : "Your documents"}
+            </h2>
+            <div className="doc-list">
+              {filtered.map((doc) => (
+                <DocumentRow
+                  key={doc.id}
+                  doc={doc}
+                  onOpen={() => navigate(`/documents/${doc.id}`)}
+                  onDelete={() => handleDelete(doc.id)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+      </main>
     </div>
   );
 }

@@ -27,7 +27,14 @@ export default defineConfig({
       url: "http://localhost:4000/health",
       reuseExistingServer: !!process.env.PW_REUSE,
       timeout: 120_000,
-      env: { SNAPSHOT_INTERVAL_MS: "2000", AUTH_RATE_LIMIT_MAX: "1000" },
+      env: {
+        SNAPSHOT_INTERVAL_MS: "2000",
+        AUTH_RATE_LIMIT_MAX: "1000",
+        // Sign-in emails go to an in-memory outbox the tests read (refused in production).
+        EMAIL_TRANSPORT: "outbox",
+        OTP_RESEND_COOLDOWN_SECONDS: "0",
+        EMAIL_DAILY_LIMIT: "1000000",
+      },
     },
     {
       command: "npm run dev --workspace=apps/web",

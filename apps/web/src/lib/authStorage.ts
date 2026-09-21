@@ -62,6 +62,10 @@ export function saveTokens(accessToken: string, refreshToken: string): void {
   safeSet(REFRESH_TOKEN_KEY, refreshToken);
 }
 
+export function saveUser(user: UserPublic): void {
+  safeSet(USER_KEY, JSON.stringify(user));
+}
+
 export function clearSession(): void {
   safeRemove(ACCESS_TOKEN_KEY);
   safeRemove(REFRESH_TOKEN_KEY);
