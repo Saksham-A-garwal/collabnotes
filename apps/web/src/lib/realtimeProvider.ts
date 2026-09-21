@@ -131,8 +131,13 @@ export class RealtimeProvider {
     // `document:join` is processed, so the server drops those as coming from
     // a non-member — this is what actually delivers edits made offline.
     // (An empty Yjs update encodes to 2 bytes.)
+    // A viewer sends nothing. Yjs always includes the document's ENTIRE delete
+    // set in an update, even when the other side already has it, so for any
+    // document where text was ever deleted this "diff" is never empty. From a
+    // viewer that would be refused by the server and surface as a bogus
+    // "Viewers cannot edit this document" error just for opening the page.
     const missing = Y.encodeStateAsUpdate(this.doc, new Uint8Array(stateVector));
-    if (missing.length > 2) {
+    if (this.canWrite() && missing.length > 2) {
       this.socket.emit("sync:update", { documentId: this.documentId, update: toArrayBuffer(missing) });
     }
 
@@ -156,8 +161,14 @@ export class RealtimeProvider {
     this.socket.emit("awareness:update", { documentId: this.documentId, update: toArrayBuffer(update) });
   };
 
+  // Role unknown (not joined yet) counts as "can write": edits made while
+  // offline are queued and must not be dropped.
+  private canWrite(): boolean {
+    return this.role !== "viewer";
+  }
+
   private handleLocalUpdate = (update: Uint8Array, origin: unknown): void => {
-    if (origin === REMOTE_ORIGIN) return;
+    if (origin === REMOTE_ORIGIN || !this.canWrite()) return;
     this.socket.emit("sync:update", { documentId: this.documentId, update: toArrayBuffer(update) });
   };
 
