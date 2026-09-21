@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.js";
 import { ApiRequestError } from "../lib/apiClient.js";
+import { safeRedirectPath } from "../lib/safeRedirect.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -24,11 +25,7 @@ export default function LoginPage() {
   const { login, register } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const rawRedirect = searchParams.get("redirect");
-  // Only accept an in-app relative path — a bare "/" is safe, but "//evil"
-  // or "https://evil" is browser-navigation-ambiguous, so reject anything
-  // that doesn't look like a single leading-slash path.
-  const redirectTo = rawRedirect && /^\/(?!\/)/.test(rawRedirect) ? rawRedirect : "/";
+  const redirectTo = safeRedirectPath(searchParams.get("redirect"));
 
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
