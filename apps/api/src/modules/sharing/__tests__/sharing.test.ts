@@ -5,7 +5,7 @@ import { io as ioClient, type Socket } from "socket.io-client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { env } from "../../../config/env.js";
 import { pool } from "../../../db/pool.js";
-import { registerWithPassword } from "../../auth/auth.service.js";
+import { signInWithEmail } from "../../auth/__tests__/helpers.js";
 import { attachRealtime } from "../../../realtime/index.js";
 import {
   createLink,
@@ -28,8 +28,8 @@ describe("sharing", () => {
 
   beforeAll(async () => {
     const owner = await pool.query<{ id: string }>(
-      "INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id",
-      ["sharing-owner@test.local", "x", "Sharing Owner"],
+      "INSERT INTO users (email, display_name) VALUES ($1, $2) RETURNING id",
+      ["sharing-owner@test.local", "Sharing Owner"],
     );
     ownerId = owner.rows[0]!.id;
     userIds.push(ownerId);
@@ -81,7 +81,7 @@ describe("sharing", () => {
     const listBefore = await listAccessForOwner(documentId, ownerId);
     expect(listBefore.find((a) => a.email === email)?.pending).toBe(true);
 
-    const user = await registerWithPassword({ email, password: "password123", displayName: "Pending User" });
+    const user = (await signInWithEmail(email)).user;
     userIds.push(user.id);
 
     const role = await getUserRole(documentId, user.id);
@@ -96,7 +96,7 @@ describe("sharing", () => {
   it("FR-18/FR-21: a share link grants the role it was created with on redeem", async () => {
     const email = "sharing-linkredeem@test.local";
     emails.push(email);
-    const user = await registerWithPassword({ email, password: "password123", displayName: "Link User" });
+    const user = (await signInWithEmail(email)).user;
     userIds.push(user.id);
 
     const link = await createLink(documentId, ownerId, "viewer");
@@ -110,7 +110,7 @@ describe("sharing", () => {
   it("FR-20/FR-22: revoking a link invalidates it with a distinct error, not a generic one", async () => {
     const email = "sharing-revoked@test.local";
     emails.push(email);
-    const user = await registerWithPassword({ email, password: "password123", displayName: "Revoked User" });
+    const user = (await signInWithEmail(email)).user;
     userIds.push(user.id);
 
     const link = await createLink(documentId, ownerId, "viewer");
@@ -125,7 +125,7 @@ describe("sharing", () => {
   it("FR-14: removing a collaborator disconnects their live session within one round trip", async () => {
     const email = "sharing-kicked@test.local";
     emails.push(email);
-    const user = await registerWithPassword({ email, password: "password123", displayName: "Kicked User" });
+    const user = (await signInWithEmail(email)).user;
     userIds.push(user.id);
 
     await inviteByEmail(documentId, ownerId, email, "editor");
@@ -147,7 +147,7 @@ describe("sharing", () => {
   it("non-owner cannot manage sharing", async () => {
     const email = "sharing-nonowner@test.local";
     emails.push(email);
-    const user = await registerWithPassword({ email, password: "password123", displayName: "Non Owner" });
+    const user = (await signInWithEmail(email)).user;
     userIds.push(user.id);
     await inviteByEmail(documentId, ownerId, email, "viewer");
 

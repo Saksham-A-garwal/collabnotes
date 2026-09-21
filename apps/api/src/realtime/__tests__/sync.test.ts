@@ -31,20 +31,20 @@ describe("realtime sync core", () => {
 
   beforeAll(async () => {
     const owner = await pool.query<{ id: string }>(
-      "INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id",
-      ["sync-owner@test.local", "x", "Sync Owner"],
+      "INSERT INTO users (email, display_name) VALUES ($1, $2) RETURNING id",
+      ["sync-owner@test.local", "Sync Owner"],
     );
     ownerId = owner.rows[0]!.id;
 
     const editor = await pool.query<{ id: string }>(
-      "INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id",
-      ["sync-editor@test.local", "x", "Sync Editor"],
+      "INSERT INTO users (email, display_name) VALUES ($1, $2) RETURNING id",
+      ["sync-editor@test.local", "Sync Editor"],
     );
     editorId = editor.rows[0]!.id;
 
     const viewer = await pool.query<{ id: string }>(
-      "INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id",
-      ["sync-viewer@test.local", "x", "Sync Viewer"],
+      "INSERT INTO users (email, display_name) VALUES ($1, $2) RETURNING id",
+      ["sync-viewer@test.local", "Sync Viewer"],
     );
     viewerId = viewer.rows[0]!.id;
 

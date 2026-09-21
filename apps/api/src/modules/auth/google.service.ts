@@ -43,6 +43,12 @@ export async function exchangeGoogleCode(code: string): Promise<GoogleProfile> {
     throw new ApiError("VALIDATION_ERROR", "Google account has no verified email.");
   }
 
+  // Accounts are matched by email, so an unverified address here would let
+  // someone claim an email they don't own and take over the account behind it.
+  if (payload.email_verified !== true) {
+    throw new ApiError("VALIDATION_ERROR", "Your Google account's email address isn't verified.");
+  }
+
   return {
     email: payload.email,
     displayName: payload.name ?? payload.email.split("@")[0] ?? "Google User",

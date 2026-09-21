@@ -47,14 +47,14 @@ describe("version history / restore", () => {
 
   beforeAll(async () => {
     const owner = await pool.query<{ id: string }>(
-      "INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id",
-      ["restore-owner@test.local", "x", "Restore Owner"],
+      "INSERT INTO users (email, display_name) VALUES ($1, $2) RETURNING id",
+      ["restore-owner@test.local", "Restore Owner"],
     );
     ownerId = owner.rows[0]!.id;
 
     const viewer = await pool.query<{ id: string }>(
-      "INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id",
-      ["restore-viewer@test.local", "x", "Restore Viewer"],
+      "INSERT INTO users (email, display_name) VALUES ($1, $2) RETURNING id",
+      ["restore-viewer@test.local", "Restore Viewer"],
     );
     viewerId = viewer.rows[0]!.id;
 

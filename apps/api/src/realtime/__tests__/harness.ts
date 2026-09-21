@@ -46,8 +46,8 @@ export type Fixture = {
 export async function createFixture(tag: string): Promise<Fixture> {
   const mkUser = async (role: string): Promise<string> => {
     const r = await pool.query<{ id: string }>(
-      "INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id",
-      [`${tag}-${role}@test.local`, "x", `${tag} ${role}`],
+      "INSERT INTO users (email, display_name) VALUES ($1, $2) RETURNING id",
+      [`${tag}-${role}@test.local`, `${tag} ${role}`],
     );
     return r.rows[0]!.id;
   };

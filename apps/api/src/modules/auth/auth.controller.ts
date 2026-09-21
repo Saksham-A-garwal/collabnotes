@@ -1,8 +1,9 @@
 import type { Request, Response } from "express";
-import type { AuthResponse } from "@collabnotes/shared";
-import { toUserPublic, type UserRow } from "../../db/queries/users.js";
-import { findOrCreateGoogleUser, loginWithPassword, registerWithPassword } from "./auth.service.js";
+import { ApiError, type AuthResponse, type VerifyCodeResponse } from "@collabnotes/shared";
+import { toUserPublic, updateDisplayName, type UserRow } from "../../db/queries/users.js";
+import { findOrCreateGoogleUser } from "./auth.service.js";
 import { exchangeGoogleCode } from "./google.service.js";
+import { requestLoginCode, verifyLoginCode } from "./otp.service.js";
 import { issueAccessToken, issueTokenPair, revokeRefreshToken, rotateRefreshToken } from "./token.service.js";
 
 async function respondWithTokenPair(res: Response, status: number, user: UserRow): Promise<void> {
@@ -11,14 +12,22 @@ async function respondWithTokenPair(res: Response, status: number, user: UserRow
   res.status(status).json(body);
 }
 
-export async function handleRegister(req: Request, res: Response): Promise<void> {
-  const user = await registerWithPassword(req.body);
-  await respondWithTokenPair(res, 201, user);
+// Same answer whether or not the address has an account (see requestLoginCode).
+export async function handleRequestCode(req: Request, res: Response): Promise<void> {
+  res.status(200).json(await requestLoginCode(req.body.email));
 }
 
-export async function handleLogin(req: Request, res: Response): Promise<void> {
-  const user = await loginWithPassword(req.body);
-  await respondWithTokenPair(res, 200, user);
+export async function handleVerifyCode(req: Request, res: Response): Promise<void> {
+  const { user, isNewUser } = await verifyLoginCode(req.body.email, req.body.code);
+  const pair = await issueTokenPair(user.id);
+  const body: VerifyCodeResponse = { user: toUserPublic(user), ...pair, isNewUser };
+  res.status(200).json(body);
+}
+
+export async function handleUpdateMe(req: Request, res: Response): Promise<void> {
+  const user = await updateDisplayName(req.userId!, req.body.displayName);
+  if (!user) throw new ApiError("UNAUTHENTICATED", "Please sign in again.");
+  res.status(200).json({ user: toUserPublic(user) });
 }
 
 export async function handleGoogleOAuth(req: Request, res: Response): Promise<void> {

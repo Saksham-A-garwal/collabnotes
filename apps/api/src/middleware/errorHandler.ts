@@ -23,6 +23,17 @@ export function errorHandler(
     return;
   }
 
+  // body-parser (and other http-errors) attach the right 4xx for problems the
+  // *client* caused — malformed JSON, an oversized body. Say so, rather than
+  // reporting a server fault. The message is a fixed string: never echo
+  // anything derived from the request back.
+  const clientStatus = (err as { status?: number; expose?: boolean })?.status;
+  if (typeof clientStatus === "number" && clientStatus >= 400 && clientStatus < 500) {
+    const message = clientStatus === 413 ? "Request body too large." : "Bad request.";
+    res.status(clientStatus).json({ error: { code: "VALIDATION_ERROR", message } });
+    return;
+  }
+
   console.error(JSON.stringify({ level: "error", message: (err as Error)?.message, stack: (err as Error)?.stack }));
   res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Something went wrong." } });
 }

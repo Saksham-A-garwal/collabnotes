@@ -22,7 +22,7 @@ describe("exchangeGoogleCode", () => {
   it("exchanges the code, verifies the id token for our audience, and maps the profile", async () => {
     const tokenSpy = getToken().mockResolvedValue({ tokens: { id_token: "the-id-token" } });
     const verifySpy = verifyIdToken().mockResolvedValue(
-      ticketFor({ email: "ada@example.com", name: "Ada Lovelace", picture: "https://img/ada.png", sub: "google-uid-1" }),
+      ticketFor({ email: "ada@example.com", email_verified: true, name: "Ada Lovelace", picture: "https://img/ada.png", sub: "google-uid-1" }),
     );
 
     await expect(exchangeGoogleCode("auth-code")).resolves.toEqual({
@@ -37,7 +37,7 @@ describe("exchangeGoogleCode", () => {
 
   it("falls back to the email's local part when Google sends no name or picture", async () => {
     getToken().mockResolvedValue({ tokens: { id_token: "t" } });
-    verifyIdToken().mockResolvedValue(ticketFor({ email: "grace@example.com", sub: "uid-2" }));
+    verifyIdToken().mockResolvedValue(ticketFor({ email: "grace@example.com", email_verified: true, sub: "uid-2" }));
 
     await expect(exchangeGoogleCode("c")).resolves.toMatchObject({ displayName: "grace", avatarUrl: null });
   });
@@ -49,6 +49,12 @@ describe("exchangeGoogleCode", () => {
 
   it("rejects a response with no id token", async () => {
     getToken().mockResolvedValue({ tokens: {} });
+    await expect(exchangeGoogleCode("c")).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+
+  it("rejects an unverified Google email — accounts are matched by email, so it would allow takeover", async () => {
+    getToken().mockResolvedValue({ tokens: { id_token: "t" } });
+    verifyIdToken().mockResolvedValue(ticketFor({ email: "victim@example.com", email_verified: false, sub: "uid-x" }));
     await expect(exchangeGoogleCode("c")).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
   });
 

@@ -18,7 +18,8 @@ export function authGuard(req: Request, res: Response, next: NextFunction): void
   const token = header.slice("Bearer ".length);
 
   try {
-    const payload = jwt.verify(token, env.JWT_SECRET) as AccessTokenPayload;
+    // Pin the algorithm: never let the token choose how it's verified.
+    const payload = jwt.verify(token, env.JWT_SECRET, { algorithms: ["HS256"] }) as AccessTokenPayload;
     req.userId = payload.sub;
     next();
   } catch (err) {

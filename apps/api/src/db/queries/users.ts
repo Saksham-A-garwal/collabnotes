@@ -4,7 +4,6 @@ import { pool } from "../pool.js";
 export type UserRow = {
   id: string;
   email: string;
-  password_hash: string | null;
   display_name: string;
   avatar_url: string | null;
   oauth_provider: string | null;
@@ -42,19 +41,34 @@ export async function findUserByOAuth(
   return result.rows[0] ?? null;
 }
 
-export async function createUserWithPassword(params: {
+// Signing in with an emailed code proves ownership of the address, so this is
+// both "log in" and "sign up". One statement, so two simultaneous sign-ins for a
+// brand-new address (or a Google sign-in racing a code) can't create two
+// accounts: the loser hits the unique index and reads the winner's row.
+// `xmax = 0` is true only for a freshly inserted row.
+export async function findOrCreateUserByEmail(params: {
   email: string;
-  passwordHash: string;
   displayName: string;
-}): Promise<UserRow> {
-  const result = await pool.query<UserRow>(
-    `INSERT INTO users (email, password_hash, display_name)
-     VALUES ($1, $2, $3) RETURNING *`,
-    [params.email, params.passwordHash, params.displayName],
+}): Promise<{ user: UserRow; isNew: boolean }> {
+  const result = await pool.query<UserRow & { is_new: boolean }>(
+    `INSERT INTO users (email, display_name)
+     VALUES ($1, $2)
+     ON CONFLICT (email) DO UPDATE SET email = users.email
+     RETURNING *, (xmax = 0) AS is_new`,
+    [params.email, params.displayName],
   );
   const row = result.rows[0];
-  if (!row) throw new Error("Failed to create user");
-  return row;
+  if (!row) throw new Error("Failed to find or create user");
+  const { is_new: isNew, ...user } = row;
+  return { user, isNew };
+}
+
+export async function updateDisplayName(userId: string, displayName: string): Promise<UserRow | null> {
+  const result = await pool.query<UserRow>(
+    "UPDATE users SET display_name = $2 WHERE id = $1 RETURNING *",
+    [userId, displayName],
+  );
+  return result.rows[0] ?? null;
 }
 
 export async function createUserWithOAuth(params: {

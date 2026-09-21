@@ -51,3 +51,16 @@ export type AuthResponse = {
   accessToken: string;
   refreshToken: string;
 };
+
+// Passwordless sign-in: POST /auth/email/request, then /auth/email/verify.
+export type RequestCodeResponse = {
+  // Seconds before another code can be requested for this address.
+  resendAfterSeconds: number;
+  // How long the code just sent stays valid.
+  expiresInSeconds: number;
+};
+
+export type VerifyCodeResponse = AuthResponse & {
+  // True when this sign-in just created the account (drives the name step).
+  isNewUser: boolean;
+};
