@@ -6,6 +6,7 @@ export type UserRow = {
   email: string;
   display_name: string;
   avatar_url: string | null;
+  email_mentions: boolean;
   oauth_provider: string | null;
   oauth_uid: string | null;
   created_at: Date;
@@ -17,6 +18,7 @@ export function toUserPublic(row: UserRow): UserPublic {
     email: row.email,
     displayName: row.display_name,
     avatarUrl: row.avatar_url,
+    emailMentions: row.email_mentions,
   };
 }
 
@@ -68,6 +70,11 @@ export async function updateDisplayName(userId: string, displayName: string): Pr
     "UPDATE users SET display_name = $2 WHERE id = $1 RETURNING *",
     [userId, displayName],
   );
+  return result.rows[0] ?? null;
+}
+
+export async function updateEmailMentions(userId: string, emailMentions: boolean): Promise<UserRow | null> {
+  const result = await pool.query<UserRow>("UPDATE users SET email_mentions = $2 WHERE id = $1 RETURNING *", [userId, emailMentions]);
   return result.rows[0] ?? null;
 }
 

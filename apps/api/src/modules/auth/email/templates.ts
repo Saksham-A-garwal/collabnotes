@@ -259,3 +259,83 @@ export function renderInviteEmail(input: InviteEmailInput): { subject: string; h
 
   return { subject, html, text };
 }
+
+// ------------------------------------------------------------------ mention
+
+export type MentionEmailInput = {
+  authorName: string;
+  documentTitle: string;
+  // The text the thread is attached to, and what was said.
+  quote: string;
+  body: string;
+  threadUrl: string;
+  appUrl: string;
+  recipientEmail: string;
+  sentAt: Date;
+};
+
+// A comment can be long; an email is a nudge to go and read it, not the conversation.
+function excerpt(value: string, max: number): string {
+  const flat = value.replace(/\r\n/g, "\n").trim();
+  return flat.length > max ? flat.slice(0, max - 1).trimEnd() + String.fromCharCode(0x2026) : flat;
+}
+
+export function renderMentionEmail(input: MentionEmailInput): { subject: string; html: string; text: string } {
+  const author = input.authorName.trim() || "Someone";
+  const title = input.documentTitle.trim() || "Untitled document";
+  const quote = excerpt(input.quote, 200);
+  const body = excerpt(input.body, 600);
+  const subject = `${subjectSafe(author, 40)} mentioned you in ${String.fromCharCode(0x201c)}${subjectSafe(title, 60)}${String.fromCharCode(0x201d)}`;
+  const authorHtml = escapeHtml(author);
+  const bodyHtml = escapeHtml(body).replace(/\n/g, "<br>");
+
+  const card = `            <h1 class="text-strong" style="margin:0 0 12px 0;font-family:${SANS};font-size:22px;line-height:1.3;font-weight:700;color:#37352F;">${authorHtml} mentioned you in a comment</h1>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td class="bg-code" style="background-color:#F7F7F5;border:1px solid #E9E9E7;border-radius:10px;padding:16px 18px;">
+                  <div class="text-muted" style="font-family:${SANS};font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6B6A66;">Document</div>
+                  <div class="text-strong" style="margin-top:4px;font-family:${SANS};font-size:16px;line-height:1.35;font-weight:600;color:#37352F;word-break:break-word;">${escapeHtml(title)}</div>
+                  <div class="text-muted" style="margin-top:12px;padding-left:10px;border-left:3px solid #D9A400;font-family:${SANS};font-size:13px;line-height:1.5;color:#6B6A66;word-break:break-word;">${escapeHtml(quote)}</div>
+                  <div class="text-strong" style="margin-top:12px;font-family:${SANS};font-size:15px;line-height:1.55;color:#37352F;word-break:break-word;"><strong>${authorHtml}</strong><br>${bodyHtml}</div>
+                </td>
+              </tr>
+            </table>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 0 0;">
+              <tr>
+                <td class="btn" bgcolor="#1B6FD1" style="border-radius:8px;background-color:#1B6FD1;">
+                  <a href="${escapeHtml(input.threadUrl)}" class="btn-link" style="display:inline-block;padding:12px 22px;font-family:${SANS};font-size:15px;font-weight:600;line-height:1.2;color:#FFFFFF;text-decoration:none;border-radius:8px;">View comment</a>
+                </td>
+              </tr>
+            </table>
+            <p class="text-muted" style="margin:20px 0 0 0;font-family:${SANS};font-size:12px;line-height:1.6;color:#8A8985;word-break:break-all;">Button not working? Copy this link into your browser:<br>${escapeHtml(input.threadUrl)}</p>`;
+
+  const html = renderShell({
+    subject,
+    preheader: `${author}: ${excerpt(input.body, 90)}`,
+    card,
+    footer: `You're receiving this because ${authorHtml} mentioned you in a comment on a document you can open. To stop these emails, turn off &ldquo;Email me when I&rsquo;m mentioned&rdquo; in the account menu in CollabNotes.`,
+    requestedAt: input.sentAt,
+    appUrl: input.appUrl,
+  });
+
+  const text = [
+    "CollabNotes",
+    "",
+    `${author} mentioned you in a comment`,
+    "",
+    `Document: ${title}`,
+    `On: ${quote}`,
+    "",
+    `${author}: ${body}`,
+    "",
+    `View it: ${input.threadUrl}`,
+    "",
+    `You're receiving this because ${author} mentioned you in a comment on a document you can open. To stop these emails, turn off "Email me when I'm mentioned" in the account menu in CollabNotes.`,
+    "",
+    "--",
+    `Sent ${formatUtc(input.sentAt)}`,
+    `CollabNotes - ${hostOf(input.appUrl)}`,
+  ].join("\n");
+
+  return { subject, html, text };
+}

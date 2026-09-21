@@ -181,6 +181,15 @@ export function createRoomManager(io: IoServer) {
       socket.leave(roomName(documentId));
     },
 
+    // Is this person looking at the document right now (on this server instance)? Used to
+    // skip an email about something they can already see happening.
+    isUserPresent(documentId: string, userId: string): boolean {
+      const room = rooms.get(documentId);
+      if (!room) return false;
+      for (const member of room.members.values()) if (member.userId === userId) return true;
+      return false;
+    },
+
     getMember(documentId: string, socketId: string): Member | undefined {
       return rooms.get(documentId)?.members.get(socketId);
     },

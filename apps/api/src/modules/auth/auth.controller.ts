@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { ApiError, type AuthResponse, type VerifyCodeResponse } from "@collabnotes/shared";
-import { toUserPublic, updateDisplayName, type UserRow } from "../../db/queries/users.js";
+import { toUserPublic, updateDisplayName, updateEmailMentions, type UserRow } from "../../db/queries/users.js";
 import { findOrCreateGoogleUser } from "./auth.service.js";
 import { exchangeGoogleCode } from "./google.service.js";
 import { requestLoginCode, verifyLoginCode } from "./otp.service.js";
@@ -25,7 +25,10 @@ export async function handleVerifyCode(req: Request, res: Response): Promise<voi
 }
 
 export async function handleUpdateMe(req: Request, res: Response): Promise<void> {
-  const user = await updateDisplayName(req.userId!, req.body.displayName);
+  const { displayName, emailMentions } = req.body as { displayName?: string; emailMentions?: boolean };
+  let user: UserRow | null = null;
+  if (displayName !== undefined) user = await updateDisplayName(req.userId!, displayName);
+  if (emailMentions !== undefined) user = await updateEmailMentions(req.userId!, emailMentions);
   if (!user) throw new ApiError("UNAUTHENTICATED", "Please sign in again.");
   res.status(200).json({ user: toUserPublic(user) });
 }

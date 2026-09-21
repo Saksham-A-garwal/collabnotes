@@ -1,4 +1,4 @@
-import { COMMENT_BODY_MAX, COMMENT_QUOTE_MAX } from "@collabnotes/shared";
+import { COMMENT_BODY_MAX, COMMENT_QUOTE_MAX, MENTIONS_MAX } from "@collabnotes/shared";
 import { z } from "zod";
 
 const body = z.string().trim().min(1, "Write something first.").max(COMMENT_BODY_MAX, `Keep it under ${COMMENT_BODY_MAX} characters.`);
@@ -20,11 +20,16 @@ export const commentParamSchema = z.object({
   commentId: z.string().uuid(),
 });
 
+// Who the comment @mentions. Only ever ids: the server decides who counts (people who can
+// open the document), so anything else in the list is dropped rather than trusted.
+const mentions = z.array(z.string().uuid()).max(MENTIONS_MAX).default([]);
+
 export const createThreadSchema = z.object({
   quote: z.string().trim().min(1, "Select some text to comment on.").max(COMMENT_QUOTE_MAX),
   anchor: anchor.nullable().optional(),
   body,
+  mentions,
 });
-export const replySchema = z.object({ body });
-export const editCommentSchema = z.object({ body });
+export const replySchema = z.object({ body, mentions });
+export const editCommentSchema = z.object({ body, mentions });
 export const resolveSchema = z.object({ resolved: z.boolean() });

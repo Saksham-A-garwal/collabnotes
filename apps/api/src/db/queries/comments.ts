@@ -1,4 +1,4 @@
-import type { CommentAnchor, CommentThreadDTO } from "@collabnotes/shared";
+import type { CommentAnchor, CommentPerson, CommentThreadDTO } from "@collabnotes/shared";
 import { pool } from "../pool.js";
 
 type CommentJson = {
@@ -107,7 +107,7 @@ export async function createThreadWithComment(params: {
   anchor: CommentAnchor | null;
   body: string;
   mentions: string[];
-}): Promise<string> {
+}): Promise<{ threadId: string; commentId: string }> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -117,14 +117,12 @@ export async function createThreadWithComment(params: {
       [params.documentId, params.authorId, params.quote, params.anchor ? JSON.stringify(params.anchor) : null],
     );
     const threadId = thread.rows[0]!.id;
-    await client.query("INSERT INTO comments (thread_id, author_id, body, mentions) VALUES ($1, $2, $3, $4)", [
-      threadId,
-      params.authorId,
-      params.body,
-      params.mentions,
-    ]);
+    const comment = await client.query<{ id: string }>(
+      "INSERT INTO comments (thread_id, author_id, body, mentions) VALUES ($1, $2, $3, $4) RETURNING id",
+      [threadId, params.authorId, params.body, params.mentions],
+    );
     await client.query("COMMIT");
-    return threadId;
+    return { threadId, commentId: comment.rows[0]!.id };
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
@@ -150,11 +148,11 @@ export async function setThreadResolved(threadId: string, resolvedBy: string | n
   );
 }
 
-export type CommentInfo = { author_id: string; is_first: boolean };
+export type CommentInfo = { author_id: string; is_first: boolean; mentions: string[] };
 
 export async function findComment(threadId: string, commentId: string): Promise<CommentInfo | null> {
   const result = await pool.query<CommentInfo>(
-    `SELECT c.author_id,
+    `SELECT c.author_id, c.mentions,
             c.id = (SELECT id FROM comments WHERE thread_id = c.thread_id ORDER BY created_at, id LIMIT 1) AS is_first
      FROM comments c WHERE c.id = $1 AND c.thread_id = $2`,
     [commentId, threadId],
@@ -172,4 +170,43 @@ export async function deleteComment(commentId: string): Promise<void> {
 
 export async function deleteThread(threadId: string): Promise<void> {
   await pool.query("DELETE FROM comment_threads WHERE id = $1", [threadId]);
+}
+
+// Everyone who can be @mentioned in a document: its owner and each person it is shared
+// with (pending invites have no account yet, so they aren't people yet). Names only.
+export async function listPeople(documentId: string): Promise<CommentPerson[]> {
+  const result = await pool.query<{ id: string; display_name: string }>(
+    `SELECT u.id, u.display_name FROM documents d JOIN users u ON u.id = d.owner_id WHERE d.id = $1
+     UNION
+     SELECT u.id, u.display_name FROM document_access a JOIN users u ON u.id = a.user_id WHERE a.document_id = $1
+     ORDER BY display_name, id`,
+    [documentId],
+  );
+  return result.rows.map((r) => ({ id: r.id, displayName: r.display_name }));
+}
+
+export type MentionRecipient = { id: string; email: string; display_name: string; email_mentions: boolean };
+
+export async function getRecipients(userIds: string[]): Promise<MentionRecipient[]> {
+  if (userIds.length === 0) return [];
+  const result = await pool.query<MentionRecipient>(
+    "SELECT id, email, display_name, email_mentions FROM users WHERE id = ANY($1::uuid[])",
+    [userIds],
+  );
+  return result.rows;
+}
+
+export async function createMentionNotifications(params: {
+  userIds: string[];
+  documentId: string;
+  threadId: string;
+  commentId: string;
+  actorId: string;
+}): Promise<void> {
+  if (params.userIds.length === 0) return;
+  await pool.query(
+    `INSERT INTO notifications (user_id, kind, document_id, thread_id, comment_id, actor_id)
+     SELECT u, 'mention', $2, $3, $4, $5 FROM unnest($1::uuid[]) AS u`,
+    [params.userIds, params.documentId, params.threadId, params.commentId, params.actorId],
+  );
 }

@@ -6,9 +6,9 @@ import { redisPub } from "../../../lib/redis.js";
 // counted here, across everybody, so abuse can't drain it.
 //
 // The two kinds are not equal: a sign-in code is what lets a person in at all,
-// while an invitation is a courtesy. So invitations stop EMAIL_SIGNIN_RESERVE
+// while an invitation or a mention alert is a courtesy. So those stop EMAIL_SIGNIN_RESERVE
 // short of the cap, keeping that headroom for codes.
-export type EmailKind = "signin" | "invite";
+export type EmailKind = "signin" | "invite" | "mention";
 
 const dayKey = (): string => `email:daily:${new Date().toISOString().slice(0, 10)}`;
 

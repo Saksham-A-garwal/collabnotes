@@ -8,6 +8,7 @@ import {
   handleDeleteThread,
   handleEditComment,
   handleListComments,
+  handleListPeople,
   handleReply,
   handleResolve,
 } from "./comments.controller.js";
@@ -35,6 +36,8 @@ const writeLimit = rateLimit({
   message: "You're commenting too fast.",
 });
 
+// People who can be @mentioned here. Registered before "/:threadId" routes so "people" is never read as an id.
+commentsRouter.get("/people", validate({ params: documentParamSchema }), asyncHandler(handleListPeople));
 commentsRouter.get("/", validate({ params: documentParamSchema }), asyncHandler(handleListComments));
 commentsRouter.post("/", writeLimit, validate({ params: documentParamSchema, body: createThreadSchema }), asyncHandler(handleCreateComment));
 commentsRouter.post("/:threadId/replies", writeLimit, validate({ params: threadParamSchema, body: replySchema }), asyncHandler(handleReply));

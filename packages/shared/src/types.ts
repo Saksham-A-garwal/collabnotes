@@ -8,6 +8,8 @@ export type UserPublic = {
   email: string;
   displayName: string;
   avatarUrl: string | null;
+  // Whether to email this person when someone @mentions them in a comment.
+  emailMentions: boolean;
 };
 
 export type DocumentSummary = {
@@ -128,3 +130,8 @@ export type CommentThreadDTO = {
 };
 
 export type CommentsResponse = { threads: CommentThreadDTO[] };
+
+// Someone who can be @mentioned in a document: its owner and everyone it is shared with.
+// Names only; email addresses are never exposed to commenters.
+export type CommentPerson = { id: string; displayName: string };
+export type PeopleResponse = { people: CommentPerson[] };

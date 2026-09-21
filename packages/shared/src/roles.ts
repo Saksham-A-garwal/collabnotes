@@ -19,3 +19,4 @@ export const COMMENT_QUOTE_MAX = 500;
 // of everyone who opens it) under thousands of threads.
 export const MAX_THREADS_PER_DOCUMENT = 500;
 export const MAX_COMMENTS_PER_THREAD = 200;
+export const MENTIONS_MAX = 10;

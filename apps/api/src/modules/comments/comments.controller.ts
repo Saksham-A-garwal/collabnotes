@@ -1,9 +1,10 @@
 import type { Request, Response } from "express";
-import type { CommentsResponse } from "@collabnotes/shared";
+import type { CommentsResponse, PeopleResponse } from "@collabnotes/shared";
 import {
   createComment,
   editComment,
   listComments,
+  listMentionable,
   removeComment,
   removeThread,
   replyToThread,
@@ -18,14 +19,19 @@ export async function handleListComments(req: Request, res: Response): Promise<v
   res.status(200).json(body);
 }
 
+export async function handleListPeople(req: Request, res: Response): Promise<void> {
+  const body: PeopleResponse = { people: await listMentionable(req.params.id!, req.userId!) };
+  res.status(200).json(body);
+}
+
 export async function handleCreateComment(req: Request, res: Response): Promise<void> {
-  const { quote, anchor, body } = req.body;
-  const thread = await createComment(req.params.id!, req.userId!, { quote, anchor: anchor ?? null, body });
+  const { quote, anchor, body, mentions } = req.body;
+  const thread = await createComment(req.params.id!, req.userId!, { quote, anchor: anchor ?? null, body, mentions });
   res.status(201).json({ thread });
 }
 
 export async function handleReply(req: Request, res: Response): Promise<void> {
-  const thread = await replyToThread(req.params.id!, req.userId!, req.params.threadId!, req.body.body);
+  const thread = await replyToThread(req.params.id!, req.userId!, req.params.threadId!, req.body.body, req.body.mentions);
   res.status(201).json({ thread });
 }
 
@@ -35,7 +41,7 @@ export async function handleResolve(req: Request, res: Response): Promise<void> 
 }
 
 export async function handleEditComment(req: Request, res: Response): Promise<void> {
-  const thread = await editComment(req.params.id!, req.userId!, req.params.threadId!, req.params.commentId!, req.body.body);
+  const thread = await editComment(req.params.id!, req.userId!, req.params.threadId!, req.params.commentId!, req.body.body, req.body.mentions);
   res.status(200).json({ thread });
 }
 
