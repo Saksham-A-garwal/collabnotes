@@ -12,6 +12,7 @@ import { env } from "../config/env.js";
 import { redisPub, redisSub } from "../lib/redis.js";
 import { appendUpdate, createSnapshot, hydrateDocument } from "./persistence.js";
 import { buildRestoreDelta } from "./restoreContent.js";
+import { createSearchIndexer } from "./searchIndex.js";
 
 // One id per running process, stamped on every Redis-relayed message so a
 // server can recognize (and skip) its own publish coming back through its
@@ -51,6 +52,10 @@ export function createRoomManager(io: IoServer) {
   // job (snapshotJob.ts, FR-23a) only snapshots rooms in here, and clears
   // them afterward.
   const dirty = new Set<string>();
+  // Keeps each document's searchable text fresh: every applied edit (from a local
+  // socket, another instance, or a restore) restarts a short per-document
+  // countdown, and when it fires the document's current text is indexed.
+  const searchIndexer = createSearchIndexer((documentId) => rooms.get(documentId)?.doc);
 
   redisSub.on("message", (channel: string, raw: string) => {
     channelHandlers.get(channel)?.(raw);
@@ -99,6 +104,7 @@ export function createRoomManager(io: IoServer) {
         const update = new Uint8Array(Buffer.from(dataBase64, "base64"));
         Y.applyUpdate(room.doc, update, "redis");
         dirty.add(documentId);
+        searchIndexer.schedule(documentId);
         io.to(roomName(documentId)).emit("sync:update", { documentId, update: toArrayBuffer(update) });
       });
       channelHandlers.set(awarenessChannel(documentId), (raw) => {
@@ -173,6 +179,7 @@ export function createRoomManager(io: IoServer) {
       if (!room) return;
       Y.applyUpdate(room.doc, update, "socket");
       dirty.add(documentId);
+      searchIndexer.schedule(documentId);
       await appendUpdate(documentId, update);
       io.to(roomName(documentId))
         .except(fromSocketId)
@@ -197,7 +204,11 @@ export function createRoomManager(io: IoServer) {
 
       await createSnapshot(documentId, room.doc, triggeredBy);
       dirty.delete(documentId);
+      searchIndexer.schedule(documentId);
     },
+
+    // Exposed so tests (and a future graceful shutdown) can force the index up to date.
+    searchIndex: searchIndexer,
 
     // FR-23(a): the periodic job snapshots only documents with changes
     // since their last snapshot.

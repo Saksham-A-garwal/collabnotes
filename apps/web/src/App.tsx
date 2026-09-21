@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { ErrorBoundary } from "./components/ErrorBoundary.js";
 import { ProtectedRoute } from "./components/ProtectedRoute.js";
+import { QuickSwitcher } from "./components/QuickSwitcher.js";
 import { AuthProvider } from "./hooks/useAuth.js";
 import DashboardPage from "./pages/DashboardPage.js";
 import { loadEditorPage } from "./pages/editorPageLoader.js";
@@ -30,6 +31,7 @@ export default function App() {
       </a>
       <BrowserRouter>
         <AuthProvider>
+          <QuickSwitcher />
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/login" element={<LoginPage />} />

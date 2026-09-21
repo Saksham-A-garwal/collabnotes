@@ -1,8 +1,11 @@
-import type { DocumentDetail, DocumentSummary, Role, SnapshotSummary } from "@collabnotes/shared";
+import type { DocumentDetail, DocumentSummary, Role, SearchResponse, SnapshotSummary } from "@collabnotes/shared";
 import { apiFetch } from "./apiClient.js";
 
 export const documentsApi = {
   list: () => apiFetch<{ documents: DocumentSummary[] }>("/documents"),
+
+  // Full-text search over the titles and contents of the documents you can open.
+  search: (q: string) => apiFetch<SearchResponse>(`/documents/search?q=${encodeURIComponent(q)}`),
 
   create: (title?: string) =>
     apiFetch<{ document: DocumentSummary }>("/documents", { method: "POST", body: { title } }),

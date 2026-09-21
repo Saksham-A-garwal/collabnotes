@@ -88,6 +88,19 @@ for (const colorScheme of ["light", "dark"] as const) {
     await expect(alice.getByRole("button", { name: /Untitled document/ }).first()).toBeVisible();
     await scan(alice, "dashboard (with a document)");
 
+    const searchBox = alice.getByRole("searchbox", { name: "Search your documents" });
+    await searchBox.fill("Untitled");
+    await expect(alice.getByRole("heading", { name: /^Results/ })).toBeVisible();
+    await expect(alice.getByRole("button", { name: /Untitled document/ }).first()).toBeVisible();
+    await scan(alice, "dashboard with search results");
+    await searchBox.fill("");
+
+    await alice.keyboard.press("Control+k");
+    await expect(alice.getByRole("dialog", { name: "Search documents" })).toBeVisible();
+    await expect(alice.getByRole("option").first()).toBeVisible();
+    await scan(alice, "quick switcher");
+    await alice.keyboard.press("Escape");
+
     await alice.getByRole("button", { name: "Account menu" }).click();
     await expect(alice.getByRole("button", { name: "Log out" })).toBeVisible();
     await scan(alice, "dashboard with the account menu open");

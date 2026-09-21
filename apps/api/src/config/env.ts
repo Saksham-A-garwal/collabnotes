@@ -61,6 +61,10 @@ const envSchema = z
     // Invitation emails stop this many short of the cap, so a burst of invites
     // can never leave someone unable to log in.
     EMAIL_SIGNIN_RESERVE: z.coerce.number().int().min(0).default(30),
+    // How long after the last edit a document's searchable text is refreshed.
+    // Short enough that new words are findable within moments; long enough that
+    // continuous typing costs one re-index, not hundreds.
+    SEARCH_INDEX_DEBOUNCE_MS: z.coerce.number().int().min(0).default(10_000),
     // Minimum gap between codes for one address.
     OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().int().min(0).default(30),
   })

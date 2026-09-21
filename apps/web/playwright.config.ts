@@ -34,6 +34,8 @@ export default defineConfig({
         EMAIL_TRANSPORT: "outbox",
         OTP_RESEND_COOLDOWN_SECONDS: "0",
         EMAIL_DAILY_LIMIT: "1000000",
+        // New words become searchable a moment after typing stops (10 s in production).
+        SEARCH_INDEX_DEBOUNCE_MS: "300",
       },
     },
     {

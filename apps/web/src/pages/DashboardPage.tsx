@@ -4,7 +4,10 @@ import type { DocumentSummary } from "@collabnotes/shared";
 import { Brand } from "../components/BrandMark.js";
 import { EmptyPagesArt, FileIcon, LogOutIcon, PlusIcon, SearchIcon } from "../components/Icons.js";
 import { useAuth } from "../hooks/useAuth.js";
+import { useDocumentSearch } from "../hooks/useDocumentSearch.js";
 import { useDocumentTitle } from "../hooks/useDocumentTitle.js";
+import { shortcutLabel } from "../components/QuickSwitcher.js";
+import { SearchHit } from "../components/SearchHit.js";
 import { ApiRequestError } from "../lib/apiClient.js";
 import { documentsApi } from "../lib/documentsApi.js";
 import { relativeTime } from "../lib/relativeTime.js";
@@ -124,6 +127,10 @@ export default function DashboardPage() {
     loadDocuments();
   }, []);
 
+  // Two characters or more searches the *contents* of your documents on the server;
+  // a single character just narrows the list on screen by title.
+  const search = useDocumentSearch(query);
+
   const filtered = useMemo(() => {
     if (!documents) return [];
     const q = query.trim().toLowerCase();
@@ -205,10 +212,10 @@ export default function DashboardPage() {
             <input
               className="input"
               type="search"
-              placeholder="Search documents"
+              placeholder={`Search documents (${shortcutLabel()})`}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search documents by title"
+              aria-label="Search your documents"
             />
           </div>
         </div>
@@ -222,7 +229,39 @@ export default function DashboardPage() {
           </p>
         )}
 
-        {documents === null && !error && (
+        {search.active && (
+          <section aria-labelledby="search-heading">
+            <h2 id="search-heading" className="section-label">
+              Results{search.loading ? " · Searching…" : ""}
+            </h2>
+            {search.error && (
+              <p role="alert" className="field-error" style={{ padding: "var(--space-sm) 12px" }}>
+                {search.error}
+              </p>
+            )}
+            {!search.loading && !search.error && search.results.length === 0 && (
+              <div className="empty-state">
+                <EmptyPagesArt />
+                <h3>No matches</h3>
+                <p>No documents match &ldquo;{query.trim()}&rdquo;. Searches look at titles and contents.</p>
+              </div>
+            )}
+            <div className="doc-list">
+              {search.results.map((result) => (
+                <div key={result.id} className="doc-row">
+                  <button type="button" className="doc-open search-hit" onClick={() => navigate(`/documents/${result.id}`)}>
+                    <SearchHit result={result} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <p role="status" className="sr-only">
+              {search.loading ? "Searching" : `${search.results.length} ${search.results.length === 1 ? "result" : "results"}`}
+            </p>
+          </section>
+        )}
+
+        {!search.active && documents === null && !error && (
           <div aria-busy="true" aria-label="Loading documents">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="skeleton doc-skeleton" />
@@ -230,7 +269,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {documents !== null && filtered.length === 0 && (
+        {!search.active && documents !== null && filtered.length === 0 && (
           <div className="empty-state">
             <EmptyPagesArt />
             <h2>{query ? "No matches" : "No documents yet"}</h2>
@@ -244,7 +283,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {documents !== null && filtered.length > 0 && (
+        {!search.active && documents !== null && filtered.length > 0 && (
           <section aria-labelledby="docs-heading">
             <h2 id="docs-heading" className="section-label">
               {query ? "Results" : "Your documents"}

@@ -78,3 +78,15 @@ export type InviteResponse = {
   access: DocumentAccessEntry;
   notification: InviteNotification;
 };
+
+export type SearchResult = {
+  id: string;
+  title: string;
+  role: Role;
+  updatedAt: string;
+  // A short excerpt with matched words wrapped in SEARCH_MARK_START/END, or null
+  // when only the title matched.
+  snippet: string | null;
+};
+
+export type SearchResponse = { results: SearchResult[] };

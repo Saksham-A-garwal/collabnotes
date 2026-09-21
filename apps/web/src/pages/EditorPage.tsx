@@ -7,7 +7,8 @@ import { Markdown } from "@tiptap/markdown";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCaret from "@tiptap/extension-collaboration-caret";
 import type { DocumentDetail, Role } from "@collabnotes/shared";
-import { ChevronLeftIcon, ClockIcon } from "../components/Icons.js";
+import { ChevronLeftIcon, ClockIcon, SearchIcon } from "../components/Icons.js";
+import { openQuickSwitcher, shortcutLabel } from "../components/QuickSwitcher.js";
 import { ConnectionStatusDot } from "../components/ConnectionStatusDot.js";
 import { ExportMenu } from "../components/ExportMenu.js";
 import { PresenceAvatarStack } from "../components/PresenceAvatarStack.js";
@@ -248,6 +249,10 @@ export default function EditorPage() {
                 Share
               </button>
             )}
+            <button type="button" className="btn btn-ghost" onClick={openQuickSwitcher} aria-label="Search documents" title={`Search documents (${shortcutLabel()})`}>
+              <SearchIcon />
+              <span className="btn-label">Search</span>
+            </button>
             <ExportMenu editor={editor} title={meta.title} />
             <button type="button" className="btn btn-ghost" onClick={() => setHistoryOpen(true)} aria-label="History">
               <ClockIcon />
