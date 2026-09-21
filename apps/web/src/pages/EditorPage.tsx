@@ -2,10 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import Underline from "@tiptap/extension-underline";
-import Link from "@tiptap/extension-link";
 import Collaboration from "@tiptap/extension-collaboration";
-import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
+import CollaborationCaret from "@tiptap/extension-collaboration-caret";
 import type { DocumentDetail, Role } from "@collabnotes/shared";
 import { ConnectionStatusDot } from "../components/ConnectionStatusDot.js";
 import { PresenceAvatarStack } from "../components/PresenceAvatarStack.js";
@@ -151,17 +149,17 @@ export default function EditorPage() {
 
   const editor = useEditor(
     {
-      // Collaboration/CollaborationCursor need a real provider — until the
+      // Collaboration/CollaborationCaret need a real provider — until the
       // socket connects, fall back to a plain (never-rendered, since the
       // "Loading…" screen below covers this window) StarterKit instance
-      // rather than constructing CollaborationCursor with a null provider.
+      // rather than constructing CollaborationCaret with a null provider.
       extensions: provider
         ? [
-            StarterKit.configure({ history: false }), // Yjs/Collaboration owns undo history
-            Underline,
-            Link.configure({ openOnClick: false }),
+            // Yjs/Collaboration owns undo history, so StarterKit's own is off.
+            // Underline and Link ship inside StarterKit as of Tiptap 3.
+            StarterKit.configure({ undoRedo: false, link: { openOnClick: false } }),
             Collaboration.configure({ document: doc }),
-            CollaborationCursor.configure({
+            CollaborationCaret.configure({
               provider,
               render: renderCursor,
               user: user

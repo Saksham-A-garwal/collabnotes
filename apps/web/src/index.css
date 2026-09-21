@@ -344,7 +344,7 @@ body {
   pointer-events: none;
 }
 
-/* Remote collaborator cursors, rendered by @tiptap/extension-collaboration-cursor */
+/* Remote collaborator cursors, rendered by @tiptap/extension-collaboration-caret (via renderCursor) */
 .collaboration-cursor__caret {
   position: relative;
   margin-left: -1px;

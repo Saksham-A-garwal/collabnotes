@@ -36,7 +36,7 @@ export function readableTextColor(hex: string): string {
   return whiteContrast >= darkContrast ? "#FFFFFF" : "#1A1A1A";
 }
 
-// Same DOM as @tiptap/extension-collaboration-cursor's default renderer, plus
+// Same DOM as the default renderer of @tiptap/extension-collaboration-caret, plus
 // a label color chosen for contrast instead of a hardcoded white.
 export function renderCursor(user: { name: string; color: string }): HTMLElement {
   const cursor = document.createElement("span");

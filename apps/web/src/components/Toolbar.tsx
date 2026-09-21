@@ -1,19 +1,36 @@
-import type { Editor } from "@tiptap/react";
+import { useEditorState, type Editor } from "@tiptap/react";
 
 // <Toolbar disabled editor /> — 04-UIUX.md §3.3: bold, italic, underline,
 // heading dropdown, bullet/numbered lists, link. Disabled/hidden entirely
 // for Viewer role. Icon-only buttons carry aria-label, not just a glyph
 // (§10 accessibility: 4.1.2 Name, Role, Value).
 export function Toolbar({ editor, disabled }: { editor: Editor | null; disabled: boolean }) {
-  if (!editor || disabled) return null;
+  // Tiptap 3's useEditor no longer re-renders on every transaction, so the
+  // active state of each button is subscribed to explicitly here — the
+  // toolbar re-renders only when one of these values actually changes.
+  // (Called before the early return below: hooks can't be conditional.)
+  const active = useEditorState({
+    editor,
+    selector: ({ editor: e }) => ({
+      bold: e?.isActive("bold") ?? false,
+      italic: e?.isActive("italic") ?? false,
+      underline: e?.isActive("underline") ?? false,
+      bulletList: e?.isActive("bulletList") ?? false,
+      orderedList: e?.isActive("orderedList") ?? false,
+      link: e?.isActive("link") ?? false,
+      heading: e?.isActive("heading", { level: 1 })
+        ? "1"
+        : e?.isActive("heading", { level: 2 })
+          ? "2"
+          : e?.isActive("heading", { level: 3 })
+            ? "3"
+            : "0",
+    }),
+  });
 
-  const headingValue = editor.isActive("heading", { level: 1 })
-    ? "1"
-    : editor.isActive("heading", { level: 2 })
-      ? "2"
-      : editor.isActive("heading", { level: 3 })
-        ? "3"
-        : "0";
+  if (!editor || !active || disabled) return null;
+
+  const headingValue = active.heading;
 
   function setHeading(value: string) {
     if (!editor) return;
@@ -39,8 +56,8 @@ export function Toolbar({ editor, disabled }: { editor: Editor | null; disabled:
       <button
         type="button"
         aria-label="Bold"
-        aria-pressed={editor.isActive("bold")}
-        className={editor.isActive("bold") ? "toolbar-btn active" : "toolbar-btn"}
+        aria-pressed={active.bold}
+        className={active.bold ? "toolbar-btn active" : "toolbar-btn"}
         onClick={() => editor.chain().focus().toggleBold().run()}
       >
         <strong>B</strong>
@@ -48,8 +65,8 @@ export function Toolbar({ editor, disabled }: { editor: Editor | null; disabled:
       <button
         type="button"
         aria-label="Italic"
-        aria-pressed={editor.isActive("italic")}
-        className={editor.isActive("italic") ? "toolbar-btn active" : "toolbar-btn"}
+        aria-pressed={active.italic}
+        className={active.italic ? "toolbar-btn active" : "toolbar-btn"}
         onClick={() => editor.chain().focus().toggleItalic().run()}
       >
         <em>I</em>
@@ -57,8 +74,8 @@ export function Toolbar({ editor, disabled }: { editor: Editor | null; disabled:
       <button
         type="button"
         aria-label="Underline"
-        aria-pressed={editor.isActive("underline")}
-        className={editor.isActive("underline") ? "toolbar-btn active" : "toolbar-btn"}
+        aria-pressed={active.underline}
+        className={active.underline ? "toolbar-btn active" : "toolbar-btn"}
         onClick={() => editor.chain().focus().toggleUnderline().run()}
       >
         <span style={{ textDecoration: "underline" }}>U</span>
@@ -79,8 +96,8 @@ export function Toolbar({ editor, disabled }: { editor: Editor | null; disabled:
       <button
         type="button"
         aria-label="Bullet list"
-        aria-pressed={editor.isActive("bulletList")}
-        className={editor.isActive("bulletList") ? "toolbar-btn active" : "toolbar-btn"}
+        aria-pressed={active.bulletList}
+        className={active.bulletList ? "toolbar-btn active" : "toolbar-btn"}
         onClick={() => editor.chain().focus().toggleBulletList().run()}
       >
         •≡
@@ -88,8 +105,8 @@ export function Toolbar({ editor, disabled }: { editor: Editor | null; disabled:
       <button
         type="button"
         aria-label="Numbered list"
-        aria-pressed={editor.isActive("orderedList")}
-        className={editor.isActive("orderedList") ? "toolbar-btn active" : "toolbar-btn"}
+        aria-pressed={active.orderedList}
+        className={active.orderedList ? "toolbar-btn active" : "toolbar-btn"}
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
       >
         1≡
@@ -97,8 +114,8 @@ export function Toolbar({ editor, disabled }: { editor: Editor | null; disabled:
       <button
         type="button"
         aria-label="Link"
-        aria-pressed={editor.isActive("link")}
-        className={editor.isActive("link") ? "toolbar-btn active" : "toolbar-btn"}
+        aria-pressed={active.link}
+        className={active.link ? "toolbar-btn active" : "toolbar-btn"}
         onClick={toggleLink}
       >
         🔗

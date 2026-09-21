@@ -248,3 +248,97 @@ test("Responsive: no horizontal overflow at 375px, avatar stack collapses to +N,
   await alice.context.close();
   await bob.context.close();
 });
+
+// FR-5 (rich text) + FR-15 (presence). Guards the editor stack itself: the
+// toolbar must follow the selection, marks must sync live through Yjs, and a
+// collaborator's caret must render with their name.
+test("Rich text: toolbar follows the selection, formatting syncs live, carets are labeled", async ({ browser }) => {
+  const alice = await newUser(browser);
+  await registerFromScratch(alice.page, "Alice");
+  await createDocument(alice.page);
+  await invite(alice.page, emailFor("Bob"));
+  await alice.page.keyboard.press("Escape");
+  const bob = await joinAsInvited(browser, "Bob");
+
+  const a = alice.page;
+  const btn = (name: string) => a.getByRole("button", { name, exact: true });
+  const heading = a.getByLabel("Heading level");
+  // A toolbar action hands focus back to the editor asynchronously; keys
+  // pressed before that lands go to the button instead. Wait for it.
+  const press = async (name: string) => {
+    await btn(name).click();
+    await expect(editor(a)).toBeFocused();
+  };
+  // Arrow/Home keys move the DOM selection first and ProseMirror picks it up
+  // on the next selectionchange. Pressing faster than that races the editor,
+  // which no person can do — so after each key, let two frames pass.
+  const key = async (k: string, times = 1) => {
+    for (let i = 0; i < times; i++) {
+      await a.keyboard.press(k);
+      await a.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+    }
+  };
+
+  // Line 1: bold, then plain, then underlined. Each button reports its state.
+  await editor(a).click();
+  await expect(btn("Bold")).toHaveAttribute("aria-pressed", "false");
+  await press("Bold");
+  await expect(btn("Bold")).toHaveAttribute("aria-pressed", "true");
+  await a.keyboard.type("Bold");
+  await press("Bold");
+  await expect(btn("Bold")).toHaveAttribute("aria-pressed", "false");
+  await a.keyboard.type(" plain ");
+  await press("Underline");
+  await expect(btn("Underline")).toHaveAttribute("aria-pressed", "true");
+  await a.keyboard.type("under");
+  await press("Underline");
+
+  // Line 2: a link over selected text (Link ships inside StarterKit in v3).
+  await key("Enter");
+  await a.keyboard.type("site");
+  await key("Shift+Home");
+  a.once("dialog", (d) => d.accept("https://example.com"));
+  await press("Link");
+  await expect(editor(a).locator('a[href="https://example.com"]')).toHaveText("site");
+  await key("End"); // collapse the selection before typing on
+
+  // Line 3: a heading.
+  await key("Enter");
+  await heading.selectOption("2");
+  await expect(heading).toHaveValue("2");
+  await expect(editor(a)).toBeFocused();
+  await a.keyboard.type("Title");
+  await expect(editor(a).locator("h2")).toContainText("Title");
+
+  // Everything above reached Bob live, as real marks/nodes — not flattened text.
+  const bobDoc = editor(bob.page);
+  await expect(bobDoc.locator("strong")).toHaveText("Bold");
+  await expect(bobDoc.locator("u")).toHaveText("under");
+  // toContainText below: Alice's caret label renders inside whichever element
+  // her cursor is in, in Bob's view.
+  await expect(bobDoc.locator('a[href="https://example.com"]').first()).toContainText("site");
+  await expect(bobDoc.locator("h2")).toContainText("Title");
+
+  // The toolbar tracks the caret, not just the last click: walk it back up
+  // through the document and each control must update on its own.
+  await key("ArrowUp");
+  await key("Home");
+  await key("ArrowRight", 2); // strictly inside "site" — link marks aren't inclusive at their edges
+  await expect(btn("Link")).toHaveAttribute("aria-pressed", "true");
+  await expect(heading).toHaveValue("0");
+  await key("ArrowUp");
+  await key("Home");
+  await key("ArrowRight", 2); // inside "Bold"
+  await expect(btn("Bold")).toHaveAttribute("aria-pressed", "true");
+  await expect(btn("Link")).toHaveAttribute("aria-pressed", "false");
+  await key("ArrowDown", 2);
+  await expect(heading).toHaveValue("2");
+
+  // Carets: each collaborator sees the other's name at their cursor.
+  await editor(bob.page).click();
+  await expect(a.locator(".collaboration-cursor__label", { hasText: "Bob" })).toBeVisible();
+  await expect(bob.page.locator(".collaboration-cursor__label", { hasText: "Alice" })).toBeVisible();
+
+  await alice.context.close();
+  await bob.context.close();
+});

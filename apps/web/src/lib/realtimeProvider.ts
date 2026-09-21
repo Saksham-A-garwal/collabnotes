@@ -21,7 +21,7 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
-// A Yjs provider (duck-typed for @tiptap/extension-collaboration-cursor,
+// A Yjs provider (duck-typed for @tiptap/extension-collaboration-caret,
 // which only needs `.awareness`) built on socket.io instead of y-websocket.
 // socket.io-client's own reconnection (exponential backoff) and automatic
 // buffering of emits made while disconnected together satisfy FR-16 without
