@@ -87,18 +87,25 @@ for (const colorScheme of ["light", "dark"] as const) {
     const comments = alice.getByRole("complementary", { name: "Comments" });
     await scan(alice, "comments panel with the composer open");
     const box = comments.getByRole("combobox", { name: "Add a comment" });
-    await box.pressSequentially("@");
+    await box.pressSequentially("@Bo");
     await expect(alice.getByRole("option", { name: "Bob" })).toBeVisible();
     await scan(alice, "comment composer with mention suggestions open");
-    await box.fill("Does this read well?");
+    await box.press("Enter");
+    await box.pressSequentially("does this read well?");
     await comments.getByRole("button", { name: "Comment", exact: true }).click();
-    await expect(comments.getByText("Does this read well?")).toBeVisible();
+    await expect(comments.getByText(/does this read well?/)).toBeVisible();
     await expect(alice.locator(".comment-anchor")).toBeVisible();
     await scan(alice, "editor with a highlighted comment and the panel open");
     await comments.getByRole("button", { name: "Resolve" }).click();
     // Resolving the thread you have open keeps it in view rather than hiding it.
     await expect(comments.getByText(/Resolved by/)).toBeVisible();
     await scan(alice, "comments panel with a resolved thread");
+
+    // Bob has the document open: the mention lit his bell, and its list is a screen of its own.
+    await bob.page.getByRole("button", { name: "Notifications, 1 unread" }).click();
+    await expect(bob.page.getByRole("region", { name: "Notifications" })).toContainText("does this read well?");
+    await scan(bob.page, "notification list with an unread mention");
+    await bob.page.keyboard.press("Escape");
     await alice.getByRole("button", { name: "Comments", exact: true }).click(); // close the panel
 
     await alice.getByRole("button", { name: "History" }).click();

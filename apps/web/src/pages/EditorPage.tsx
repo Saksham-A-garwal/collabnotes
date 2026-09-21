@@ -12,6 +12,7 @@ import { ChevronLeftIcon, ClockIcon, CommentIcon, SearchIcon } from "../componen
 import { openQuickSwitcher, shortcutLabel } from "../components/QuickSwitcher.js";
 import { ConnectionStatusDot } from "../components/ConnectionStatusDot.js";
 import { ExportMenu } from "../components/ExportMenu.js";
+import { NotificationBell } from "../components/NotificationBell.js";
 import { PresenceAvatarStack } from "../components/PresenceAvatarStack.js";
 import { SelectionCommentButton } from "../components/SelectionCommentButton.js";
 import { ShareModal } from "../components/ShareModal.js";
@@ -250,6 +251,19 @@ export default function EditorPage() {
     }
   }, [linkedThread, activeThreadId, ranges, editor, anchorController]);
 
+  // Choosing a notification: another document is a navigation; this one just opens the thread
+  // (the address is updated too, so the link can be copied).
+  function openNotification(n: { documentId: string; threadId: string }) {
+    if (n.documentId !== documentId) {
+      navigate(`/documents/${n.documentId}?thread=${n.threadId}`);
+      return;
+    }
+    linkHandled.current = { opened: n.threadId, scrolled: null };
+    setActiveThreadId(n.threadId);
+    setCommentsOpen(true);
+    navigate(`/documents/${n.documentId}?thread=${n.threadId}`, { replace: true });
+  }
+
   // Losing the right to comment closes any half-written comment.
   useEffect(() => {
     if (!canAddComments) setDraft(null);
@@ -355,6 +369,7 @@ export default function EditorPage() {
                 Share
               </button>
             )}
+            <NotificationBell provider={provider} onOpen={openNotification} />
             <button type="button" className="btn btn-ghost" onClick={openQuickSwitcher} aria-label="Search documents" title={`Search documents (${shortcutLabel()})`}>
               <SearchIcon />
               <span className="btn-label">Search</span>

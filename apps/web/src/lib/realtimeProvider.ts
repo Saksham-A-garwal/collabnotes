@@ -47,6 +47,7 @@ export class RealtimeProvider {
   private deletedListeners = new Set<(message: string) => void>();
   private threadUpsertedListeners = new Set<(thread: CommentThreadDTO) => void>();
   private threadDeletedListeners = new Set<(threadId: string) => void>();
+  private notificationListeners = new Set<() => void>();
 
   constructor(documentId: string, doc: Y.Doc) {
     this.documentId = documentId;
@@ -76,6 +77,7 @@ export class RealtimeProvider {
     this.socket.on("awareness:query", this.handleAwarenessQuery);
     this.socket.on("comment:thread-upserted", this.handleThreadUpserted);
     this.socket.on("comment:thread-deleted", this.handleThreadDeleted);
+    this.socket.on("notification:new", this.handleNotification);
 
     this.doc.on("update", this.handleLocalUpdate);
     this.awareness.on("update", this.handleLocalAwarenessUpdate);
@@ -206,6 +208,10 @@ export class RealtimeProvider {
     this.threadDeletedListeners.forEach((cb) => cb(threadId));
   };
 
+  private handleNotification = (): void => {
+    this.notificationListeners.forEach((cb) => cb());
+  };
+
   private handleBeforeUnload = (): void => {
     removeAwarenessStates(this.awareness, [this.doc.clientID], "window unload");
   };
@@ -246,6 +252,11 @@ export class RealtimeProvider {
     return () => this.threadDeletedListeners.delete(cb);
   }
 
+  onNotification(cb: () => void): () => void {
+    this.notificationListeners.add(cb);
+    return () => this.notificationListeners.delete(cb);
+  }
+
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
@@ -261,5 +272,6 @@ export class RealtimeProvider {
     this.deletedListeners.clear();
     this.threadUpsertedListeners.clear();
     this.threadDeletedListeners.clear();
+    this.notificationListeners.clear();
   }
 }

@@ -78,6 +78,9 @@ test("A comment stays on its words while other people type around it, and notice
 
   // Deleting the words leaves the thread, saying its text is gone.
   await selectWord(alice, "brave");
+  // The editor learns about a DOM selection a moment later; the floating button appearing is the
+  // sign it has, and pressing Backspace before that would delete in the wrong place.
+  await expect(floatingComment(alice)).toBeVisible();
   await alice.keyboard.press("Backspace");
   await expect(alice.locator(".comment-anchor")).toHaveCount(0);
   await expect(panel(alice).getByText(/has changed or been removed/)).toBeVisible();
@@ -194,6 +197,57 @@ test("Mentioning someone: suggestions, highlight, an email whose link opens the 
   await expect(panel(alice).getByText("and this one too")).toBeVisible();
   await alice.waitForTimeout(1500);
   expect((await emailTo(alice, editorEmail))!.text).toBe(mail.text); // still the first email
+
+  await ownerContext.close();
+  await bob.context.close();
+});
+
+async function mentionEditor(page: Page, word: string, text: string): Promise<void> {
+  await selectWord(page, word);
+  await floatingComment(page).click();
+  const box = panel(page).getByRole("combobox", { name: "Add a comment" });
+  await box.pressSequentially("@Ed");
+  await box.press("Enter");
+  await box.pressSequentially(text);
+  await panel(page).getByRole("button", { name: "Comment", exact: true }).click();
+  await expect(panel(page).getByText(text)).toBeVisible();
+}
+
+test("The bell: a mention lights it up live, opens the thread, and mark-all-read sticks", async ({ browser }) => {
+  const { ownerContext, alice, bob } = await startShared(browser, "Editor", "Please review the launch plan today");
+  const bell = (page: Page, name: string | RegExp) => page.getByRole("button", { name });
+
+  // Bob has the document open, so the server pushes the new notification straight to him.
+  await expect(bell(bob.page, "Notifications")).toBeVisible();
+  await mentionEditor(alice, "launch", "first question for you");
+  await expect(bell(bob.page, "Notifications, 1 unread")).toBeVisible();
+
+  await bell(bob.page, "Notifications, 1 unread").click();
+  const list = bob.page.getByRole("region", { name: "Notifications" });
+  await expect(list).toContainText("Alice mentioned you in");
+  await expect(list).toContainText("first question for you");
+  await list.getByRole("button", { name: /first question for you/ }).click();
+  // The thread opens on the spot, and the badge clears.
+  await expect(panel(bob.page).locator(".thread.is-active")).toContainText("first question for you");
+  await expect(bell(bob.page, "Notifications")).toBeVisible();
+
+  // A second mention, then the dashboard: the bell is there too, and reading everything sticks.
+  await mentionEditor(alice, "plan", "second question for you");
+  await expect(bell(bob.page, "Notifications, 1 unread")).toBeVisible();
+  await bob.page.goto("/");
+  await expect(bell(bob.page, "Notifications, 1 unread")).toBeVisible();
+  await bell(bob.page, "Notifications, 1 unread").click();
+  await bob.page.getByRole("button", { name: "Mark all as read" }).click();
+  await expect(bell(bob.page, "Notifications")).toBeVisible();
+  await bob.page.reload();
+  await expect(bell(bob.page, "Notifications")).toBeVisible();
+  await expect(bell(bob.page, /unread/)).toHaveCount(0);
+
+  // From the dashboard, choosing a notification opens that document on that thread.
+  await bell(bob.page, "Notifications").click();
+  await bob.page.getByRole("region", { name: "Notifications" }).getByRole("button", { name: /second question for you/ }).click();
+  await bob.page.waitForURL(/\/documents\/[0-9a-f-]{36}\?thread=/);
+  await expect(panel(bob.page).locator(".thread.is-active")).toContainText("second question for you");
 
   await ownerContext.close();
   await bob.context.close();

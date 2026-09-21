@@ -11,6 +11,7 @@ import { SearchHit } from "../components/SearchHit.js";
 import { ApiRequestError } from "../lib/apiClient.js";
 import { documentsApi } from "../lib/documentsApi.js";
 import { relativeTime } from "../lib/relativeTime.js";
+import { NotificationBell } from "../components/NotificationBell.js";
 import { loadEditorPage } from "./editorPageLoader.js";
 
 function initials(name: string): string {
@@ -173,6 +174,7 @@ export default function DashboardPage() {
             <PlusIcon />
             {creating ? "Creating…" : "New document"}
           </button>
+          <NotificationBell onOpen={(n) => navigate(`/documents/${n.documentId}?thread=${n.threadId}`)} />
           <div ref={menuRef} style={{ position: "relative" }}>
             <button
               type="button"
