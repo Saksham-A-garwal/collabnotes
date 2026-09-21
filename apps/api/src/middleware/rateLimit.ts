@@ -13,10 +13,6 @@ import { redisPub } from "../lib/redis.js";
 // (TRUST_PROXY, see app.ts) Express only believes the entries our own proxies
 // appended.
 function clientIp(req: Request): string {
-  // TEMPORARY DIAGNOSTIC (removed right after use): what does Render's proxy send?
-  if (process.env["DEBUG_CLIENT_IP"] === "1") {
-    console.log(JSON.stringify({ dbg: "client-ip", ip: req.ip, ips: req.ips, xff: req.headers["x-forwarded-for"], peer: req.socket.remoteAddress, cf: req.headers["cf-connecting-ip"], tci: req.headers["true-client-ip"], realIp: req.headers["x-real-ip"] }));
-  }
   return req.ip ?? req.socket.remoteAddress ?? "unknown";
 }
 
