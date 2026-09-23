@@ -12,25 +12,12 @@ import { loadSession } from "./authStorage.js";
 
 export type ConnectionStatus = "connecting" | "synced" | "reconnecting" | "offline";
 
-// Tags transactions applied from the network so the local `doc.on("update")`
-// listener below doesn't echo them straight back to the server (SRS FR-13:
-// the server never interprets updates, but the client must still avoid
-// re-sending what it just received).
 const REMOTE_ORIGIN = "realtime-remote";
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
-// A Yjs provider (duck-typed for @tiptap/extension-collaboration-caret,
-// which only needs `.awareness`) built on socket.io instead of y-websocket.
-// socket.io-client's own reconnection (exponential backoff) and automatic
-// buffering of emits made while disconnected together satisfy FR-16 without
-// bespoke retry/queueing logic: local edits keep landing in `doc` while
-// offline (FR-12), and the queued "sync:update" emits flush on reconnect,
-// while a fresh, bidirectional "sync:step1"/"sync:step2" handshake on every
-// (re)connect both pulls what the client missed and pushes what the server
-// missed.
 export class RealtimeProvider {
   readonly doc: Y.Doc;
   readonly awareness: Awareness;
@@ -55,7 +42,6 @@ export class RealtimeProvider {
     this.awareness = new Awareness(doc);
 
     const session = loadSession();
-    // Unset = same origin, which is what the single-service deployment wants.
     const wsUrl = import.meta.env.VITE_WS_URL || window.location.origin;
 
     this.socket = io(wsUrl, {
@@ -112,9 +98,6 @@ export class RealtimeProvider {
     }
   };
 
-  // A live role change while connected (UIUX §6): the server already applies
-  // it to this socket in place, so just surface it — the editor flips between
-  // editable/read-only and shows a persistent notice.
   private handleRoleChanged = ({ documentId, role }: { documentId: string; role: Role }): void => {
     if (documentId !== this.documentId) return;
     this.role = role;
@@ -133,16 +116,6 @@ export class RealtimeProvider {
     if (documentId !== this.documentId) return;
     Y.applyUpdate(this.doc, new Uint8Array(update), REMOTE_ORIGIN);
 
-    // Second half of the handshake: send the server whatever it's missing.
-    // socket.io flushes emits buffered while offline *before* our
-    // `document:join` is processed, so the server drops those as coming from
-    // a non-member — this is what actually delivers edits made offline.
-    // (An empty Yjs update encodes to 2 bytes.)
-    // A viewer sends nothing. Yjs always includes the document's ENTIRE delete
-    // set in an update, even when the other side already has it, so for any
-    // document where text was ever deleted this "diff" is never empty. From a
-    // viewer that would be refused by the server and surface as a bogus
-    // "Viewers cannot edit this document" error just for opening the page.
     const missing = Y.encodeStateAsUpdate(this.doc, new Uint8Array(stateVector));
     if (this.canWrite() && missing.length > 2) {
       this.socket.emit("sync:update", { documentId: this.documentId, update: toArrayBuffer(missing) });
@@ -161,16 +134,12 @@ export class RealtimeProvider {
     applyAwarenessUpdate(this.awareness, new Uint8Array(update), REMOTE_ORIGIN);
   };
 
-  // Someone just joined and can't see us yet — re-announce our presence.
   private handleAwarenessQuery = ({ documentId }: { documentId: string }): void => {
     if (documentId !== this.documentId || !this.awareness.getLocalState()) return;
     const update = encodeAwarenessUpdate(this.awareness, [this.doc.clientID]);
     this.socket.emit("awareness:update", { documentId: this.documentId, update: toArrayBuffer(update) });
   };
 
-  // Role unknown (not joined yet) counts as "can write": edits made while
-  // offline are queued and must not be dropped. Viewers and commenters both send
-  // nothing: the server would refuse it and show a bogus error.
   private canWrite(): boolean {
     return this.role === null || canEditContent(this.role);
   }

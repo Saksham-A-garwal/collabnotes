@@ -11,7 +11,6 @@ import { createFixture, sleep, TestClient, waitFor, type Fixture } from "../../.
 const app = createApp();
 const tokenFor = (userId: string) => jwt.sign({ sub: userId }, env.JWT_SECRET, { expiresIn: "5m" });
 
-// Realistic-looking anchors: the server treats them as opaque, so any small object works.
 const ANCHOR = { from: { type: { client: 1, clock: 4 }, tname: null, item: { client: 1, clock: 9 }, assoc: 0 }, to: { type: null, tname: "default", item: null, assoc: -1 } };
 
 describe("comments", () => {
@@ -84,8 +83,6 @@ describe("comments", () => {
     });
 
     it("a thread id from another document can't be reached through this one", async () => {
-      // The stranger owns otherDoc; a thread there must be untouchable via fx.documentId,
-      // even for a user who may comment on fx.documentId.
       const foreign = await request(app)
         .post(`/api/v1/documents/${otherDocId}/comments`)
         .set("Authorization", `Bearer ${tokenFor(strangerId)}`)
@@ -259,10 +256,8 @@ describe("comments", () => {
     });
 
     it("people outside the document's room don't receive its comments", async () => {
-      // The stranger joins their own document; they must not see fx's comment events.
       const outsider = new TestClient(fx, strangerId);
       outsider.socket.on("connect", () => undefined);
-      // (Joining fx.documentId would be refused, so the client never becomes synced.)
       outsider.socket.connect();
       await waitFor(() => outsider.events.some((e) => e.name === "document:error"));
 

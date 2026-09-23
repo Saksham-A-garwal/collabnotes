@@ -22,7 +22,7 @@ describe("notifications", () => {
       .set(as(authorId))
       .send({ quote: "the launch plan", body, mentions });
     expect(res.status).toBe(201);
-    await sleep(250); // mentions are recorded in the background
+    await sleep(250);
     return res.body.thread.id as string;
   };
 
@@ -30,7 +30,6 @@ describe("notifications", () => {
     fx = await createFixture("ntf");
     await pool.query("UPDATE documents SET title = 'Launch notes' WHERE id = $1", [fx.documentId]);
     await pool.query("UPDATE users SET display_name = 'Ada Lovelace' WHERE id = $1", [fx.ownerId]);
-    // Keep these tests off the mail budget: only the bell is under test.
     await pool.query("UPDATE users SET email_mentions = false WHERE id = ANY($1)", [[fx.editorId, fx.viewerId, fx.ownerId]]);
   });
   afterAll(async () => {
@@ -60,7 +59,7 @@ describe("notifications", () => {
       documentTitle: "Launch notes",
       actor: { id: fx.ownerId, displayName: "Ada Lovelace" },
       quote: "the launch plan",
-      excerpt: "And the <b>budget</b> too please", // whitespace flattened; the text is data, not markup
+      excerpt: "And the <b>budget</b> too please",
       readAt: null,
     });
   });
@@ -76,7 +75,6 @@ describe("notifications", () => {
     const before = await list(fx.editorId);
     const target = before.notifications[0]!;
 
-    // Another person "reading" it changes nothing.
     expect((await request(app).post(`/api/v1/notifications/${target.id}/read`).set(as(fx.viewerId))).status).toBe(204);
     expect((await list(fx.editorId)).unreadCount).toBe(before.unreadCount);
 
@@ -84,7 +82,6 @@ describe("notifications", () => {
     const after = await list(fx.editorId);
     expect(after.unreadCount).toBe(before.unreadCount - 1);
     expect(after.notifications.find((n) => n.id === target.id)!.readAt).not.toBeNull();
-    // Doing it twice is harmless.
     expect((await request(app).post(`/api/v1/notifications/${target.id}/read`).set(as(fx.editorId))).status).toBe(204);
     expect((await list(fx.editorId)).unreadCount).toBe(after.unreadCount);
   });
@@ -110,7 +107,6 @@ describe("notifications", () => {
     expect(gone.notifications).toEqual([]);
     expect(gone.unreadCount).toBe(0);
 
-    // Given access back, they reappear: nothing was deleted, only hidden.
     await pool.query("INSERT INTO document_access (document_id, user_id, role) VALUES ($1, $2, 'viewer')", [fx.documentId, fx.viewerId]);
     expect((await list(fx.viewerId)).unreadCount).toBe(1);
   });
@@ -129,7 +125,6 @@ describe("notifications", () => {
 
     await mention(fx.ownerId, "live ping", fx.editorId);
     await waitFor(() => editor.events.some((e) => e.name === "notification:new"));
-    // Only the person mentioned hears it.
     expect(owner.events.some((e) => e.name === "notification:new")).toBe(false);
   });
 });

@@ -1,8 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createFixture, REMOTE, sleep, TestClient, waitFor, type Fixture } from "./harness.js";
 
-// PRD §8 / SRS NFR-1: edit propagation p95 < 300ms on one instance, and
-// 4–5 simultaneous editors with no visible lag / no divergence.
 describe("performance targets (PRD §8)", () => {
   let fx: Fixture;
 
@@ -34,7 +32,7 @@ describe("performance targets (PRD §8)", () => {
     for (let i = 0; i < SAMPLES; i++) {
       sentAt[i] = performance.now();
       sender.insert(`<${i}>`);
-      await sleep(15); // a fast typist, not a flood
+      await sleep(15);
     }
     await waitFor(() => arrivals.size === SAMPLES, 10000);
 

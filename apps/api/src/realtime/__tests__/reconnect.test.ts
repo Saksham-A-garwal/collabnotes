@@ -3,8 +3,6 @@ import { pool } from "../../db/pool.js";
 import { hydrateDocument } from "../persistence.js";
 import { createFixture, sleep, TestClient, waitFor, type Fixture } from "./harness.js";
 
-// PRD §8 / SRS FR-16: edits made while disconnected must survive a
-// reconnect with no loss and no duplication.
 describe("disconnect / reconnect (FR-16)", () => {
   let fx: Fixture;
 
@@ -25,13 +23,12 @@ describe("disconnect / reconnect (FR-16)", () => {
     await waitFor(() => b.text() === "online;");
 
     a.socket.disconnect();
-    a.insert("offline;"); // applied locally immediately (FR-12), buffered for send
+    a.insert("offline;");
     expect(a.text()).toBe("online;offline;");
 
-    await a.connect(); // reconnect: join + handshake
+    await a.connect();
     await waitFor(() => b.text() === "online;offline;");
 
-    // ...and it's durable, not just relayed.
     const persisted = await hydrateDocument(fx.documentId);
     expect(persisted.getText("content").toString()).toBe("online;offline;");
   });
@@ -74,7 +71,6 @@ describe("disconnect / reconnect (FR-16)", () => {
     const persisted = await hydrateDocument(fx.documentId);
     const persistedText = persisted.getText("content").toString();
     for (const token of expected) {
-      // every edit present exactly once — no loss, no duplication
       expect(persistedText.split(token).length - 1).toBe(1);
     }
     expect(a.text()).toBe(persistedText);

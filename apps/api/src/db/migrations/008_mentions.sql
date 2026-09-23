@@ -1,6 +1,3 @@
--- @mentions in comments: a per-person switch for the emails, and a record of who was
--- mentioned where (the source for the in-app notification list).
-
 ALTER TABLE users ADD COLUMN email_mentions BOOLEAN NOT NULL DEFAULT TRUE;
 
 CREATE TABLE notifications (
@@ -10,8 +7,6 @@ CREATE TABLE notifications (
   document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
   thread_id   UUID NOT NULL REFERENCES comment_threads(id) ON DELETE CASCADE,
   comment_id  UUID NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
-  -- Kept if the person who mentioned you deletes their account: the notification
-  -- just loses the name.
   actor_id    UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   read_at     TIMESTAMPTZ

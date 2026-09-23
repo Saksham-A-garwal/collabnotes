@@ -8,8 +8,6 @@ import { sharingApi } from "../lib/sharingApi.js";
 
 type ShareRole = Exclude<Role, "owner">;
 
-// What to tell the owner after an invite. Sharing itself has always succeeded by
-// the time we get here; this is only about the optional email.
 function inviteMessage(email: string, notification: InviteNotification): { text: string; warn: boolean } {
   switch (notification) {
     case "sent":
@@ -38,9 +36,6 @@ function initials(name: string): string {
   return (first + last).toUpperCase();
 }
 
-// <ShareModal documentId currentCollaborators onInvite onGenerateLink
-// onRevoke /> — 04-UIUX.md §3.4: invite-by-email + share-link sections,
-// collaborator list below both, Owner row fixed with no remove action.
 export function ShareModal({ documentId, onClose }: { documentId: string; onClose: () => void }) {
   const { user } = useAuth();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -51,7 +46,6 @@ export function ShareModal({ documentId, onClose }: { documentId: string; onClos
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<ShareRole>("editor");
   const [inviting, setInviting] = useState(false);
-  // On by default: people expect to be told. Untick to share quietly.
   const [notify, setNotify] = useState(true);
   const [inviteResult, setInviteResult] = useState<{ text: string; warn: boolean } | null>(null);
 
@@ -88,8 +82,6 @@ export function ShareModal({ documentId, onClose }: { documentId: string; onClos
     setInviteResult(null);
     try {
       const { notification } = await sharingApi.invite(documentId, inviteEmail, inviteRole, notify);
-      // Stays until the next action (no timer): a message that fades on its own
-      // can vanish before it's been read (WCAG 2.2.1).
       setInviteResult(inviteMessage(inviteEmail, notification));
       setInviteEmail("");
       await loadCollaborators();
@@ -132,7 +124,6 @@ export function ShareModal({ documentId, onClose }: { documentId: string; onClos
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard API unavailable — the link text is still selectable/visible.
     }
   }
 

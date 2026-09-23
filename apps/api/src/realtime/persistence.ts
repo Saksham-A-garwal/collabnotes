@@ -1,13 +1,6 @@
 import * as Y from "yjs";
 import { pool } from "../db/pool.js";
 
-// Rebuilds a document's Yjs state: latest snapshot (if any) plus only the
-// updates created *after* that snapshot's cutoff (last_update_id). Before
-// Phase 3 this replayed the entire update log every time, which was safe
-// (Yjs merges are idempotent) but would have silently undone a restore —
-// replaying pre-restore updates back on top of a post-restore snapshot
-// would re-merge the abandoned content in. The cutoff is what makes
-// restore actually stick.
 export async function hydrateDocument(documentId: string): Promise<Y.Doc> {
   const doc = new Y.Doc();
 
@@ -28,7 +21,6 @@ export async function hydrateDocument(documentId: string): Promise<Y.Doc> {
   return doc;
 }
 
-// FR-13/Architecture §6.1 step 5: append-only, never blocks the relay path.
 export async function appendUpdate(documentId: string, update: Uint8Array): Promise<void> {
   await pool.query("INSERT INTO document_updates (document_id, update_data) VALUES ($1, $2)", [
     documentId,
@@ -36,11 +28,6 @@ export async function appendUpdate(documentId: string, update: Uint8Array): Prom
   ]);
 }
 
-// Architecture §6.2, simplified: rather than re-deriving state by replaying
-// document_updates from scratch, this snapshots the room's already-live
-// Y.Doc directly — the room manager keeps it current with every applied
-// update anyway, so re-deriving it would just recompute the same result
-// less efficiently. Captures the current max update id as the new cutoff.
 export async function createSnapshot(
   documentId: string,
   doc: Y.Doc,

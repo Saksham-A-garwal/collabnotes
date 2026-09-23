@@ -1,12 +1,3 @@
-// Getting a document *out* of CollabNotes. Everything here runs in the browser,
-// from what the editor already has on screen — so it needs no server round trip,
-// works the same for viewers as for editors (they can already read it), and
-// can't leak anything a person couldn't already see.
-
-// A title is user-typed and ends up as a file name on someone's disk. Strip what
-// operating systems forbid or treat specially ( \ / : * ? " < > | and control
-// characters), collapse whitespace, avoid names that are only dots, and keep it
-// a sane length. Never returns an empty string.
 export function safeFilename(title: string, fallback = "document"): string {
   let cleaned = "";
   for (const ch of title) {
@@ -18,8 +9,6 @@ export function safeFilename(title: string, fallback = "document"): string {
   return cleaned || fallback;
 }
 
-// The file starts with the document's title as a heading: the title lives outside
-// the editor content, so without this the exported file would have lost its name.
 export function withTitle(title: string, markdownBody: string): string {
   const heading = title.trim() || "Untitled document";
   return `# ${heading}\n\n${markdownBody.trim()}\n`;
@@ -34,7 +23,6 @@ export function downloadMarkdown(title: string, markdownBody: string): void {
   document.body.append(link);
   link.click();
   link.remove();
-  // Give the browser a moment to start the download before releasing the blob.
   window.setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
@@ -42,10 +30,6 @@ export async function copyMarkdown(title: string, markdownBody: string): Promise
   await navigator.clipboard.writeText(withTitle(title, markdownBody));
 }
 
-// "Save as PDF" is the browser's own print dialog, driven by the @media print
-// rules in index.css (they hide everything but the document). Browsers use the
-// page title as the default file name, so it's swapped for the document's title
-// for the duration of the print dialog.
 export function printDocument(title: string): void {
   const previous = document.title;
   document.title = safeFilename(title, "Untitled document");

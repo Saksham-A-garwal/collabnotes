@@ -1,10 +1,5 @@
 import { EventEmitter } from "node:events";
 
-// Minimal typed event bus so document CRUD (this phase) and the WS room
-// manager (Phase 2) can stay decoupled. FR-11 requires that deleting a
-// document force-disconnects its live room; the room manager subscribes to
-// "document:deleted" once it exists instead of documents.service.ts
-// reaching into WS internals directly.
 type Events = {
   "document:deleted": [documentId: string];
 };

@@ -6,9 +6,7 @@ import { clearSession, loadSession, saveSession, saveUser } from "../lib/authSto
 type AuthContextValue = {
   user: UserPublic | null;
   isAuthenticated: boolean;
-  // Step 1 of email sign-in: send the code.
   requestCode: (email: string) => Promise<RequestCodeResponse>;
-  // Step 2: exchange the code for a session. `isNewUser` means the account was just created.
   verifyCode: (email: string, code: string) => Promise<{ isNewUser: boolean }>;
   updateDisplayName: (displayName: string) => Promise<void>;
   setEmailMentions: (emailMentions: boolean) => Promise<void>;
@@ -65,7 +63,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         await authApi.logout(session.refreshToken);
       } catch {
-        // Best-effort — clear local state regardless of server outcome.
       }
     }
     clearSession();

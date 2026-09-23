@@ -37,9 +37,6 @@ import {
 } from "../lib/commentAnchors.js";
 import { documentsApi } from "../lib/documentsApi.js";
 
-// Inline-editable title: click to edit, commit on blur/Enter, revert on
-// Escape (04-UIUX.md §6). Only an Owner can rename (FR-9) — non-owners see
-// plain text.
 function EditableTitle({
   documentId,
   title,
@@ -114,8 +111,6 @@ export default function EditorPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [restoredNotice, setRestoredNotice] = useState(false);
-  // UIUX §6: a role change mid-session is announced, and — per WCAG 2.2.1 —
-  // stays until the user dismisses it rather than fading on a timer.
   const [accessNotice, setAccessNotice] = useState<string | null>(null);
   const previousRole = useRef<Role | null>(null);
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -166,17 +161,11 @@ export default function EditorPage() {
 
   const editor = useEditor(
     {
-      // Collaboration/CollaborationCaret need a real provider — until the
-      // socket connects, fall back to a plain (never-rendered, since the
-      // "Loading…" screen below covers this window) StarterKit instance
-      // rather than constructing CollaborationCaret with a null provider.
       extensions: provider
         ? [
-            // Yjs/Collaboration owns undo history, so StarterKit's own is off.
-            // Underline and Link ship inside StarterKit as of Tiptap 3.
             StarterKit.configure({ undoRedo: false, link: { openOnClick: false } }),
             Placeholder.configure({ placeholder: "Start writing…" }),
-            Markdown, // adds editor.getMarkdown(), used by Export
+            Markdown,
             Collaboration.configure({ document: doc }),
             CommentAnchors.configure({ getController: () => anchorController }),
             CollaborationCaret.configure({
@@ -189,15 +178,11 @@ export default function EditorPage() {
           ]
         : [StarterKit],
       editable: false,
-      // The name has to be on the contenteditable itself (which carries
-      // role="textbox"); a label on EditorContent's wrapper div doesn't reach it,
-      // leaving screen readers an unnamed text box (WCAG 4.1.2).
       editorProps: { attributes: { "aria-label": "Document content" } },
     },
     [doc, provider],
   );
 
-  // Only owners and editors change the text. Commenters read and comment, viewers just read.
   const canEdit = role !== null && canEditContent(role);
   const canAddComments = role !== null && canComment(role);
 
@@ -218,7 +203,6 @@ export default function EditorPage() {
     if (role) previousRole.current = role;
   }, [role]);
 
-  // Highlights follow the thread list and the active thread; clicking one opens its card.
   useEffect(() => {
     anchorController.onActivate = (id) => {
       setActiveThreadId(id);
@@ -233,8 +217,6 @@ export default function EditorPage() {
     refreshAnchors(editor);
   }, [anchorController, comments.threads, activeThreadId, editor]);
 
-  // A link like /documents/<id>?thread=<id> (from a mention email or notification) opens the
-  // comments, shows that thread, and scrolls to the text it's about once its position is known.
   useEffect(() => {
     if (!linkedThread || !comments.loaded || linkHandled.current.opened === linkedThread) return;
     linkHandled.current.opened = linkedThread;
@@ -251,8 +233,6 @@ export default function EditorPage() {
     }
   }, [linkedThread, activeThreadId, ranges, editor, anchorController]);
 
-  // Choosing a notification: another document is a navigation; this one just opens the thread
-  // (the address is updated too, so the link can be copied).
   function openNotification(n: { documentId: string; threadId: string }) {
     if (n.documentId !== documentId) {
       navigate(`/documents/${n.documentId}?thread=${n.threadId}`);
@@ -264,7 +244,6 @@ export default function EditorPage() {
     navigate(`/documents/${n.documentId}?thread=${n.threadId}`, { replace: true });
   }
 
-  // Losing the right to comment closes any half-written comment.
   useEffect(() => {
     if (!canAddComments) setDraft(null);
   }, [canAddComments]);
@@ -277,7 +256,6 @@ export default function EditorPage() {
     setCommentsOpen(true);
   }
 
-  // Ctrl/Cmd+Alt+M: comment on the selection, for people not using a pointer.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && e.altKey && e.code === "KeyM") {
@@ -289,8 +267,6 @@ export default function EditorPage() {
     return () => document.removeEventListener("keydown", onKeyDown);
   });
 
-  // The comments panel sits below the sticky header, whose height changes with the
-  // toolbar wrapping; measure it rather than guess.
   useEffect(() => {
     function measure() {
       const bottom = chromeRef.current?.getBoundingClientRect().bottom;
@@ -419,7 +395,6 @@ export default function EditorPage() {
 
       <main className={commentsOpen ? "editor-canvas-wrap with-comments" : "editor-canvas-wrap"} id="main">
         <div className="editor-canvas">
-          {/* Shown only when printing or saving as PDF: the title is not part of the editor content. */}
           <h1 className="print-title">{meta.title}</h1>
           <EditorContent editor={editor} />
         </div>
@@ -447,7 +422,6 @@ export default function EditorPage() {
           }}
           onCancelDraft={() => {
             setDraft(null);
-            // Drop the selection too, so the floating button doesn't linger over finished work.
             if (editor && !editor.isDestroyed) editor.commands.setTextSelection(editor.state.selection.to);
           }}
           onClose={() => {

@@ -1,7 +1,3 @@
-// Minimal migration runner: applies numbered .sql files in order, tracked in
-// a `schema_migrations` table. No framework — the migration set is small and
-// append-only per the project's own "don't build infrastructure you don't
-// need" principle (Architecture §13).
 import { config } from "dotenv";
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -13,9 +9,6 @@ config({ path: join(__dirname, "../../../../.env") });
 const migrationsDir = join(__dirname, "migrations");
 
 async function main() {
-  // Without this, pg silently falls back to localhost:5432 and the failure
-  // shows up as a baffling ECONNREFUSED (which is exactly how a missing
-  // DATABASE_URL first surfaced on a fresh deploy).
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is not set — cannot run migrations.");
   }

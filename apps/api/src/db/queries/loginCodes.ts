@@ -22,8 +22,6 @@ export async function insertLoginCode(params: {
   return result.rows[0]!.id;
 }
 
-// A new code invalidates every older live one for the address, so only the
-// most recent email can ever work.
 export async function supersedeOtherCodes(email: string, keepId: string): Promise<void> {
   await pool.query(
     "UPDATE login_codes SET consumed_at = now() WHERE email = $1 AND id <> $2 AND consumed_at IS NULL",
@@ -43,13 +41,6 @@ export async function latestCodeCreatedAt(email: string): Promise<Date | null> {
   return result.rows[0]?.created_at ?? null;
 }
 
-// Spends one guess *before* the code is compared, in a single statement.
-// Comparing first and counting afterwards would let a burst of parallel
-// requests each try a different guess before any of them is counted; doing the
-// increment atomically (the row lock serialises concurrent updates and the
-// `attempts < max` check is re-evaluated under it) caps guesses per code at
-// `maxAttempts` no matter how they arrive. Returns null when there is no live
-// code or its guesses are used up.
 export async function reserveAttempt(
   email: string,
   maxAttempts: number,
@@ -68,8 +59,6 @@ export async function reserveAttempt(
   return result.rows[0] ?? null;
 }
 
-// Single use: only one caller can flip consumed_at from NULL, so a code can
-// never sign in twice even if it's submitted concurrently.
 export async function consumeCode(id: string): Promise<boolean> {
   const result = await pool.query(
     "UPDATE login_codes SET consumed_at = now() WHERE id = $1 AND consumed_at IS NULL AND expires_at > now()",
@@ -82,7 +71,6 @@ export async function invalidateCode(id: string): Promise<void> {
   await pool.query("UPDATE login_codes SET consumed_at = now() WHERE id = $1 AND consumed_at IS NULL", [id]);
 }
 
-// Housekeeping, run opportunistically when a code is requested.
 export async function deleteStaleCodes(): Promise<void> {
   await pool.query("DELETE FROM login_codes WHERE expires_at < now() - interval '1 day'");
 }

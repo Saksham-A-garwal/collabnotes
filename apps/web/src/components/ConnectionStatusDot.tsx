@@ -1,8 +1,5 @@
 import type { ConnectionStatus } from "../lib/realtimeProvider.js";
 
-// <ConnectionStatusDot status /> — 04-UIUX.md §3.3/§6: a small dot plus a
-// passive text label communicates sync state; never a blocking modal
-// (principle 4, "fail visibly, recover invisibly").
 const LABELS: Record<ConnectionStatus, string> = {
   connecting: "Connecting…",
   synced: "All changes saved",

@@ -43,11 +43,6 @@ export async function findUserByOAuth(
   return result.rows[0] ?? null;
 }
 
-// Signing in with an emailed code proves ownership of the address, so this is
-// both "log in" and "sign up". One statement, so two simultaneous sign-ins for a
-// brand-new address (or a Google sign-in racing a code) can't create two
-// accounts: the loser hits the unique index and reads the winner's row.
-// `xmax = 0` is true only for a freshly inserted row.
 export async function findOrCreateUserByEmail(params: {
   email: string;
   displayName: string;

@@ -4,9 +4,6 @@ import { afterAll, describe, expect, it } from "vitest";
 import { redisPub } from "../lib/redis.js";
 import { rateLimit } from "./rateLimit.js";
 
-// Regression: the limiter used to key on the *first* X-Forwarded-For entry,
-// which the client controls — a fresh made-up value per request gave every
-// request its own bucket and the limit never applied.
 const RUN = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
 function appWith(trustProxy: number, prefix: string) {
@@ -28,7 +25,6 @@ describe("rate limiter client address", () => {
     const app = appWith(0, "direct");
     const statuses: number[] = [];
     for (let i = 0; i < 4; i++) {
-      // A different spoofed "address" every time.
       statuses.push((await request(app).get("/").set("X-Forwarded-For", `10.0.0.${i}`)).status);
     }
     expect(statuses).toEqual([200, 200, 429, 429]);
@@ -38,7 +34,6 @@ describe("rate limiter client address", () => {
     const app = appWith(1, "proxied");
     const statuses: number[] = [];
     for (let i = 0; i < 4; i++) {
-      // The client-invented left side varies; the proxy-appended right side is the same real client.
       statuses.push((await request(app).get("/").set("X-Forwarded-For", `6.6.6.${i}, 203.0.113.9`)).status);
     }
     expect(statuses).toEqual([200, 200, 429, 429]);

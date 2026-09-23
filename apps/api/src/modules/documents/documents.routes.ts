@@ -18,14 +18,10 @@ import { sharingRouter } from "../sharing/sharing.routes.js";
 
 export const documentsRouter = Router();
 
-// BR-2: role/access is checked server-side on every REST call — authGuard
-// establishes identity, requireAccess (documents.service.ts) checks role.
 documentsRouter.use(authGuard);
 
 documentsRouter.get("/", asyncHandler(handleListDocuments));
 documentsRouter.post("/", validate({ body: createDocumentSchema }), asyncHandler(handleCreateDocument));
-// Registered before "/:id", which would otherwise claim "search" as a document id.
-// Per-user limit: search-as-you-type is chatty, but a script can't hammer the database.
 documentsRouter.get(
   "/search",
   rateLimit({ keyPrefix: "search-user", windowSeconds: 60, max: 120, keyBy: (req) => req.userId ?? "anonymous", message: "You're searching too fast." }),

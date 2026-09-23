@@ -27,8 +27,6 @@ type Actions = {
 
 const messageOf = (err: unknown) => (err instanceof ApiRequestError ? err.message : "Something went wrong. Try again.");
 
-// One text box used for a new thread, a reply and an edit. Plain text only: what is
-// typed is what is shown, never interpreted as markup.
 function Composer({
   label,
   submitLabel,
@@ -43,7 +41,6 @@ function Composer({
   submitLabel: string;
   initial?: string;
   initialMentions?: CommentPerson[];
-  // Who "@" can suggest (never yourself).
   people: CommentPerson[];
   autoFocus?: boolean;
   onSubmit: (body: string, mentions: string[]) => Promise<void>;
@@ -52,13 +49,10 @@ function Composer({
   const [value, setValue] = useState(initial);
   const [caret, setCaret] = useState(initial.length);
   const [highlight, setHighlight] = useState(0);
-  // The "@" position whose suggestions were dismissed with Escape, so they stay dismissed until it changes.
   const [dismissedAt, setDismissedAt] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ref = useRef<HTMLTextAreaElement>(null);
-  // Who was picked from the list (id -> the name that was written). What is actually sent is
-  // the subset still named in the text when it's submitted.
   const chosen = useRef(new Map<string, string>(initialMentions.map((p) => [p.id, p.displayName])));
   const listId = useId();
 
@@ -169,7 +163,6 @@ function Composer({
                 role="option"
                 aria-selected={i === active}
                 className={i === active ? "mention-option is-active" : "mention-option"}
-                // mousedown, not click: the textarea must not lose focus first.
                 onMouseDown={(e) => {
                   e.preventDefault();
                   pick(person);
@@ -222,7 +215,6 @@ function CommentItem({
   onError: (message: string | null) => void;
 }) {
   const [editing, setEditing] = useState(false);
-  // The opening comment can only go with its whole thread (which is the thread's Delete).
   const canDelete = !isFirst && (mine || canModerate);
   const mentioned = comment.mentions.map((id) => people.find((p) => p.id === id)).filter((p): p is CommentPerson => p !== undefined);
 
@@ -318,7 +310,6 @@ function ThreadCard({
   const canDeleteThread = thread.author.id === userId || canModerate;
   const mentionable = people.filter((p) => p.id !== userId);
 
-  // When a thread is opened from the document, bring its card into view.
   useEffect(() => {
     if (active) cardRef.current?.scrollIntoView({ block: "nearest" });
   }, [active]);
@@ -410,8 +401,6 @@ function ThreadCard({
   );
 }
 
-// <CommentsPanel /> — a side panel beside the document, not a modal: people keep
-// reading and typing while it's open. Open threads first; resolved ones tucked away.
 export function CommentsPanel({
   threads,
   loaded,
@@ -450,7 +439,6 @@ export function CommentsPanel({
   const resolved = threads.filter((t) => t.resolvedAt !== null);
   const writable = canComment(role);
 
-  // A link to a resolved thread (or clicking one in the document) should show it, not hide it.
   useEffect(() => {
     if (activeId && threads.some((t) => t.id === activeId && t.resolvedAt !== null)) setShowResolved(true);
   }, [activeId, threads]);

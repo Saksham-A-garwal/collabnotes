@@ -15,7 +15,7 @@ export function useAwarenessStates(awareness: Awareness | null): PresenceUser[] 
     function update() {
       const next: PresenceUser[] = [];
       awareness!.getStates().forEach((state, clientId) => {
-        if (clientId === awareness!.doc.clientID) return; // exclude self
+        if (clientId === awareness!.doc.clientID) return;
         const user = (state as { user?: { name: string; color: string } }).user;
         if (user) next.push({ clientId, name: user.name, color: user.color });
       });

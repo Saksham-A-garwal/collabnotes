@@ -12,10 +12,6 @@ import { listAccessForOwner } from "../sharing.service.js";
 import { inviteByEmail } from "../sharing.service.js";
 import { OWNER_INVITE_EMAILS_PER_HOUR, RECIPIENT_INVITE_EMAILS_PER_DAY } from "../inviteNotifier.js";
 
-// "Notify by email" makes the app email an address of the owner's choosing, so
-// most of what's tested here is the fencing around that: when it sends, when it
-// deliberately doesn't, and that nothing about the email can ever block or
-// break the share itself.
 const RUN = Date.now().toString(36);
 const dailyKey = () => `email:daily:${new Date().toISOString().slice(0, 10)}`;
 
@@ -33,7 +29,6 @@ const addr = (name: string) => `invmail-${name}-${RUN}@test.local`;
 
 describe("invitation emails", () => {
   beforeAll(async () => {
-    // Inviting an existing user also updates their live session, which needs the realtime layer.
     server = createServer();
     attachRealtime(server);
     await new Promise<void>((resolve) => server.listen(0, resolve));
@@ -67,7 +62,7 @@ describe("invitation emails", () => {
       expect(part).toContain("Q3 planning");
       expect(part).toContain(`${env.CORS_ORIGIN.split(",")[0]!.trim()}/documents/${documentId}`);
       expect(part).toContain("edit");
-      expect(part).toContain("New to CollabNotes?"); // no account: explain the sign-in
+      expect(part).toContain("New to CollabNotes?");
     }
     expect(mail.html).toContain("Open document");
   });
@@ -115,7 +110,7 @@ describe("invitation emails", () => {
     const send = vi.spyOn(mailer, "sendEmail");
     const second = await inviteByEmail(documentId, ownerId, to, "editor", { notify: true });
     expect(second.notification).toBe("limited");
-    expect(second.entry.role).toBe("editor"); // the role change itself went through
+    expect(second.entry.role).toBe("editor");
     expect(send).not.toHaveBeenCalled();
   });
 
@@ -131,7 +126,6 @@ describe("invitation emails", () => {
   });
 
   it("caps how many invitation emails one owner can send per hour", async () => {
-    // A fresh owner, so this doesn't eat the shared owner's budget.
     const { user: spammer } = await signInWithEmail(addr("spammer"));
     const doc = await pool.query<{ id: string }>("INSERT INTO documents (owner_id) VALUES ($1) RETURNING id", [spammer.id]);
     documentIds.push(doc.rows[0]!.id);
@@ -143,7 +137,6 @@ describe("invitation emails", () => {
     }
     expect(results.filter((r) => r === "sent")).toHaveLength(OWNER_INVITE_EMAILS_PER_HOUR);
     expect(results.at(-1)).toBe("limited");
-    // ...and the last one was still shared, just not emailed.
     const access = await listAccessForOwner(doc.rows[0]!.id, spammer.id);
     expect(access.some((a) => a.email === addr(`victim${OWNER_INVITE_EMAILS_PER_HOUR}`))).toBe(true);
   });
@@ -170,9 +163,7 @@ describe("invitation emails", () => {
       const { notification } = await inviteByEmail(documentId, ownerId, addr("budget"), "viewer", { notify: true });
       expect(notification).toBe("limited");
       expect(send).not.toHaveBeenCalled();
-      // A refused invitation must not use up budget...
       expect(await redisPub.get(key)).toBe(String(inviteCeiling));
-      // ...and a sign-in code still can.
       expect(await takeDailySlot("signin")).toBe(true);
     } finally {
       if (before === null) await redisPub.del(key);

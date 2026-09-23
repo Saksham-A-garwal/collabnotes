@@ -2,10 +2,6 @@ import { useEffect, useState } from "react";
 import { useEditorState, type Editor } from "@tiptap/react";
 import { CommentIcon } from "./Icons.js";
 
-// A small "Comment" button that floats under the selected text. Placed with
-// position: fixed from the selection's screen coordinates, and recomputed on scroll and
-// resize, so it needs no popover library. The keyboard path is the shortcut in the
-// editor page (and the panel explains it); this is the pointer shortcut.
 export function SelectionCommentButton({ editor, onComment }: { editor: Editor | null; onComment: () => void }) {
   const selection = useEditorState({
     editor,
@@ -44,7 +40,6 @@ export function SelectionCommentButton({ editor, onComment }: { editor: Editor |
       type="button"
       className="btn btn-primary selection-comment-btn"
       style={{ top: place.top, left: place.left }}
-      // Keep the text selected while the button is pressed.
       onMouseDown={(e) => e.preventDefault()}
       onClick={onComment}
     >

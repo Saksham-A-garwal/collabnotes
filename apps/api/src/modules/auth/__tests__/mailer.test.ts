@@ -3,8 +3,6 @@ import { env } from "../../../config/env.js";
 import { EmailDeliveryError, sendEmail } from "../email/mailer.js";
 import { renderSignInCodeEmail } from "../email/templates.js";
 
-// The real Resend call can't run in CI without a key, so this pins the request
-// we'd send (URL, auth header, payload) and how each kind of failure surfaces.
 type Mutable = { EMAIL_TRANSPORT: string; RESEND_API_KEY: string; EMAIL_FROM: string };
 const mutableEnv = env as unknown as Mutable;
 const original = { ...mutableEnv };
@@ -42,11 +40,10 @@ describe("Resend transport", () => {
       text: "482913",
     });
     expect(typeof body.headers["X-Entity-Ref-ID"]).toBe("string");
-    expect(init.signal).toBeInstanceOf(AbortSignal); // a stuck provider can't hang the request
+    expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 
   it("surfaces a provider rejection (bad key, unverified domain, quota) as a delivery error", async () => {
-    // A fresh Response per call: a body can only be read once.
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation(

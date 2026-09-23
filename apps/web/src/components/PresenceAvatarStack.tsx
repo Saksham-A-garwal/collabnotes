@@ -8,10 +8,6 @@ function initials(name: string): string {
   return (first + last).toUpperCase();
 }
 
-// <PresenceAvatarStack collaborators maxVisible={3} /> — 04-UIUX.md §5.
-// Color is always paired with initials/name, never relied on alone (§2.2,
-// §10 accessibility: 1.4.1 Use of Color). maxVisible={0} collapses to a
-// single "+N" badge (UIUX §9, below 480px).
 export function PresenceAvatarStack({
   collaborators,
   maxVisible = 3,

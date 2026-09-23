@@ -8,27 +8,16 @@ function hash(text: string): string {
   return Math.abs(h).toString(36);
 }
 
-// Unique per run *and* per test, so "Bob" in one test never collides with
-// "Bob" in another (the database isn't reset between tests). Call it from
-// inside a test body.
 export const emailFor = (name: string) => `${name.toLowerCase()}.${RUN}.${hash(test.info().title)}@e2e.test`;
 
-// The API runs with EMAIL_TRANSPORT=outbox under Playwright (see
-// playwright.config.ts): instead of sending mail it keeps the last messages in
-// memory and lets the test read them, so the whole sign-in flow — request a
-// code, receive it, type it — runs for real.
 const API = "http://localhost:4000/api/v1";
 
-// Every user gets their own browser context — i.e. their own localStorage —
-// which is what makes genuine two-user tests possible (two tabs of one
-// context share a session).
 export async function newUser(browser: Browser): Promise<{ context: BrowserContext; page: Page }> {
   const context = await browser.newContext();
   const page = await context.newPage();
   return { context, page };
 }
 
-// Reads the sign-in code most recently "emailed" to an address.
 export async function codeFor(page: Page, email: string): Promise<string> {
   let code: string | null = null;
   await expect
@@ -44,10 +33,6 @@ export async function codeFor(page: Page, email: string): Promise<string> {
   return code!;
 }
 
-// Starts on the login screen's email step. Enters the address, then the code
-// from the inbox (which submits itself at six digits). A brand-new account then
-// lands on the "what should we call you?" step, which this completes with
-// `name`; a returning user is signed straight in.
 export async function signIn(page: Page, email: string, opts: { name?: string } = {}): Promise<void> {
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
@@ -55,7 +40,6 @@ export async function signIn(page: Page, email: string, opts: { name?: string } 
   await page.getByLabel("Verification code").fill(await codeFor(page, email));
 
   const nameField = page.getByLabel("Your name");
-  // Either the name step appears (new account) or we leave /login (returning user).
   await expect
     .poll(async () => (await nameField.isVisible()) || !page.url().includes("/login"), { timeout: 15_000 })
     .toBe(true);
@@ -65,7 +49,6 @@ export async function signIn(page: Page, email: string, opts: { name?: string } 
   }
 }
 
-// Creates an account for `name` (or signs in, if the address already exists).
 export async function register(page: Page, name: string, opts: { email?: string } = {}): Promise<void> {
   await signIn(page, opts.email ?? emailFor(name), { name });
 }
@@ -84,9 +67,6 @@ export async function createDocument(page: Page): Promise<string> {
 
 export const editor = (page: Page) => page.locator(".ProseMirror");
 
-// The document's text without collaborator cursor labels — Tiptap renders a
-// remote user's name *inside* the paragraph, so a plain textContent
-// comparison would include "Alice"/"Bob".
 export async function docText(page: Page): Promise<string> {
   return editor(page).evaluate((el) => {
     const clone = el.cloneNode(true) as HTMLElement;
@@ -105,8 +85,6 @@ export async function typeInEditor(page: Page, text: string): Promise<void> {
   await page.keyboard.type(text);
 }
 
-// Selects `word` by setting the browser's own selection, which is what a mouse drag does.
-// (Works for read-only viewers too, unlike the keyboard.)
 export async function selectWord(page: Page, word: string): Promise<void> {
   await page.evaluate((w) => {
     const walker = document.createTreeWalker(document.querySelector(".ProseMirror")!, NodeFilter.SHOW_TEXT);
@@ -137,7 +115,6 @@ export async function invite(page: Page, email: string, role: "Editor" | "Commen
   await expect(dialog.getByText(email).first()).toBeVisible();
 }
 
-// Registers a user with an already-invited email and opens the shared document.
 export async function joinAsInvited(browser: Browser, name: string, opts: { colorScheme?: "light" | "dark" } = {}) {
   const context = await browser.newContext({ colorScheme: opts.colorScheme });
   const page = await context.newPage();
@@ -149,7 +126,6 @@ export async function joinAsInvited(browser: Browser, name: string, opts: { colo
   return user;
 }
 
-// The latest email the API "sent" to an address, or null if none was.
 export async function emailTo(page: Page, address: string): Promise<{ subject: string; text: string } | null> {
   const res = await page.request.get(`${API}/dev/outbox`, { params: { to: address } });
   return res.ok() ? ((await res.json()) as { subject: string; text: string }) : null;

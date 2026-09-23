@@ -3,17 +3,11 @@ import type { CommentAnchor, CommentThreadDTO } from "@collabnotes/shared";
 import { commentsApi } from "../lib/commentsApi.js";
 import type { ConnectionStatus, RealtimeProvider } from "../lib/realtimeProvider.js";
 
-// Replace a thread if we have it, add it if we don't. Used for both the response to
-// our own change and the same change arriving over the socket, so applying it twice
-// is harmless.
 export function upsertThread(threads: CommentThreadDTO[], thread: CommentThreadDTO): CommentThreadDTO[] {
   const next = threads.some((t) => t.id === thread.id) ? threads.map((t) => (t.id === thread.id ? thread : t)) : [...threads, thread];
   return next.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
-// The document's comment threads: loaded over REST, kept live by socket events, and
-// reloaded after every reconnect (events sent while we were away are gone, so a fresh
-// list is the only way to be sure we haven't missed one).
 export function useComments(documentId: string, provider: RealtimeProvider | null, status: ConnectionStatus) {
   const [threads, setThreads] = useState<CommentThreadDTO[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -53,7 +47,6 @@ export function useComments(documentId: string, provider: RealtimeProvider | nul
     return thread;
   }, []);
 
-  // Every action rejects with the API's error so the caller can show its message.
   const actions = {
     createThread: (input: { quote: string; anchor: CommentAnchor | null; body: string; mentions: string[] }) =>
       commentsApi.createThread(documentId, input).then(({ thread }) => apply(thread)),

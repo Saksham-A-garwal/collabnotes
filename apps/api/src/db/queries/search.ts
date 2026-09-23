@@ -9,36 +9,16 @@ export type SearchRow = {
   snippet: string | null;
 };
 
-// Only letters and digits survive, so what comes out is always safe to hand to
-// to_tsquery (which would otherwise choke on, or be steered by, punctuation).
-// The last word gets a prefix match, which is what makes search-as-you-type work:
-// "roadm" finds "roadmap".
-//
-// Not applied when the query uses search syntax ("exact phrase", -excluded, OR):
-// prefix-matching an excluded word would quietly undo the exclusion, so those
-// queries keep their exact meaning.
 export function prefixQueryFor(q: string): string {
   if (/(^|\s)-\S|"|\sor\s/i.test(q)) return "";
   const words = q.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
   return words.map((w, i) => (i === words.length - 1 ? `${w}:*` : w)).join(" & ");
 }
 
-// A literal % or _ in what someone types must match itself, not act as a wildcard.
 export const likePattern = (q: string): string => `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 
 const HEADLINE_OPTIONS = `StartSel=${SEARCH_MARK_START}, StopSel=${SEARCH_MARK_END}, MaxWords=24, MinWords=12, MaxFragments=1`;
 
-// The access check is part of the query, not a filter applied afterwards: a
-// document the caller can't open is never selected, so it can't leak through
-// ranking, counts or timing. "Can open" means the owner or a collaborator whose
-// invite has been resolved to their account (a pending invite has no user_id,
-// so it matches nothing).
-//
-// Matching, best first: a title hit, then full-text rank. `websearch_to_tsquery`
-// understands "quoted phrases", OR and -exclusions and never throws on odd input;
-// the prefix query and the title ILIKE add search-as-you-type and partial titles.
-// The expensive part, building the highlighted snippet, runs only for the rows
-// that survive the LIMIT.
 export async function searchDocumentsForUser(userId: string, q: string, limit: number): Promise<SearchRow[]> {
   const result = await pool.query<SearchRow>(
     `WITH q AS (

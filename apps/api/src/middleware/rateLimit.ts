@@ -1,17 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { redisPub } from "../lib/redis.js";
 
-// Ported from the Cortex project's rateLimit.middleware.js: a Redis
-// INCR+EXPIRE fixed-window counter per key, fail-open on Redis errors so an
-// outage degrades to "unlimited" rather than locking everyone out (SRS §9.2
-// A07 just asks for rate-limited auth endpoints, not five-nines on the
-// limiter itself).
-// The client's address, as resolved by Express. This deliberately does NOT read
-// X-Forwarded-For itself: that header is client-controlled, so trusting its
-// first entry lets anyone pick a fresh "IP" per request and walk straight past
-// every per-IP limit. With `trust proxy` set to the real number of hops
-// (TRUST_PROXY, see app.ts) Express only believes the entries our own proxies
-// appended.
 function clientIp(req: Request): string {
   return req.ip ?? req.socket.remoteAddress ?? "unknown";
 }

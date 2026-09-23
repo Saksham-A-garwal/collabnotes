@@ -3,9 +3,6 @@ import type { Editor } from "@tiptap/react";
 import { copyMarkdown, downloadMarkdown, printDocument } from "../lib/exportDocument.js";
 import { DownloadIcon } from "./Icons.js";
 
-// "Export" in the editor header: Markdown file, Markdown to the clipboard, or
-// print / save as PDF. Available to every role — anyone who can read a document
-// can already copy it, so hiding this from viewers would protect nothing.
 export function ExportMenu({ editor, title }: { editor: Editor | null; title: string }) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -20,7 +17,7 @@ export function ExportMenu({ editor, title }: { editor: Editor | null; title: st
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         close();
-        buttonRef.current?.focus(); // hand focus back to where the menu came from
+        buttonRef.current?.focus();
       }
     }
     document.addEventListener("pointerdown", onPointerDown);
@@ -54,7 +51,6 @@ export function ExportMenu({ editor, title }: { editor: Editor | null; title: st
 
   function handlePrint() {
     close();
-    // After the menu has closed and re-rendered, so it isn't in the printout.
     window.setTimeout(() => printDocument(title), 50);
   }
 

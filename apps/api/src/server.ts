@@ -12,8 +12,6 @@ attachRealtime(server);
 server.listen(env.PORT, () => {
   console.log(JSON.stringify({ level: "info", message: `API listening on :${env.PORT}` }));
 
-  // Index documents that predate search (or were edited moments before a restart).
-  // In the background: serving requests never waits on it.
   backfillSearchIndex()
     .then((count) => {
       if (count > 0) console.log(JSON.stringify({ level: "info", message: "search backfill complete", documents: count }));

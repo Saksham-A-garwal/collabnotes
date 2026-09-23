@@ -32,9 +32,6 @@ export async function findRefreshTokenByHash(tokenHash: string): Promise<Refresh
   return result.rows[0] ?? null;
 }
 
-// Atomically marks the token revoked only if it's currently active — the
-// same "conditional update as a lock" trick as the Cortex project's
-// findOneAndUpdate({revoked:false}), just expressed as a Postgres UPDATE.
 export async function revokeIfActive(
   tokenHash: string,
   reason: "rotated" | "logout",

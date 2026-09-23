@@ -49,10 +49,6 @@ export async function findAccessByUserId(
   return result.rows[0] ?? null;
 }
 
-// Grants (or updates the role of) access for an existing user. Upsert, so
-// re-inviting an existing collaborator with a different role is how a role
-// change happens (SRS has no dedicated "change role" endpoint; UIUX §3.4's
-// role dropdown reuses this).
 export async function grantAccessToUser(
   documentId: string,
   userId: string,
@@ -71,8 +67,6 @@ export async function grantAccessToUser(
   return { ...row, display_name: null, email: null };
 }
 
-// FR-19: no account yet — recorded against the email, resolved by
-// resolvePendingInvites once that email registers/logs in.
 export async function grantAccessByEmail(
   documentId: string,
   email: string,
@@ -107,9 +101,6 @@ export async function removeAccess(documentId: string, userId: string): Promise<
   return (result.rowCount ?? 0) > 0;
 }
 
-// Cancels a not-yet-resolved invite — not in SRS §5.3, but without it a
-// mistyped or no-longer-wanted invite to someone with no account yet could
-// never be undone (DELETE /access/:userId only matches resolved rows).
 export async function removeAccessByEmail(documentId: string, email: string): Promise<boolean> {
   const result = await pool.query(
     "DELETE FROM document_access WHERE document_id = $1 AND invited_email = $2",
@@ -118,11 +109,6 @@ export async function removeAccessByEmail(documentId: string, email: string): Pr
   return (result.rowCount ?? 0) > 0;
 }
 
-// Called when a new account is created (register or first-time OAuth), so
-// any invite sent to that email before they had an account takes effect.
-// The NOT EXISTS guard skips a row if that (document, user) grant somehow
-// already exists (e.g. they were separately granted access directly) rather
-// than violating the partial unique index.
 export async function resolvePendingInvites(email: string, userId: string): Promise<void> {
   await pool.query(
     `UPDATE document_access

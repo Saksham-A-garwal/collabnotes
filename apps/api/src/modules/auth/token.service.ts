@@ -8,11 +8,6 @@ import {
   revokeIfActive,
 } from "../../db/queries/refreshTokens.js";
 
-// Rotation + reuse-detection algorithm ported from the Cortex project's
-// token.service.js. Adapted from Mongoose's chain-of-rotatedFromId model to
-// the family_id grouping already in the Postgres schema (SRS §6): every
-// token issued from one login/rotation chain shares a family_id, and FR-5's
-// "revoke the entire token family" maps directly onto `revokeFamily`.
 const RACE_GRACE_MS = 10_000;
 
 export const hashToken = (raw: string): string =>
@@ -58,8 +53,6 @@ export async function rotateRefreshToken(rawToken: string): Promise<RotateResult
     return { status: "ok", userId: current.user_id, refreshToken };
   }
 
-  // Not active — either never existed, already logged out, already flagged
-  // as reused, or was rotated by an earlier request. Distinguish those.
   const existing = await findRefreshTokenByHash(tokenHash);
   if (!existing) return { status: "invalid" };
 
@@ -70,13 +63,10 @@ export async function rotateRefreshToken(rawToken: string): Promise<RotateResult
   if (existing.revoked_reason === "rotated" && existing.revoked_at) {
     const rotatedAgo = Date.now() - existing.revoked_at.getTime();
     if (rotatedAgo <= RACE_GRACE_MS) {
-      // Likely a duplicate near-simultaneous request (network retry), not
-      // an attacker — ask the client to retry rather than nuking the family.
       return { status: "race", userId: existing.user_id };
     }
   }
 
-  // Presented again well after rotation: FR-5 reuse signal.
   const revokedCount = await revokeFamily(existing.family_id, "reuse_detected");
   return { status: "reuse_detected", userId: existing.user_id, revokedCount };
 }

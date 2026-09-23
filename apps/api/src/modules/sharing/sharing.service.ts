@@ -24,10 +24,6 @@ import { getRoomManager } from "../../realtime/index.js";
 import { getDocumentForUser } from "../documents/documents.service.js";
 import { notifyInvitee } from "./inviteNotifier.js";
 
-// SRS §3's role table has exactly one row for sharing — "Manage sharing
-// (invite/revoke)" — Owner only. The Share modal (UIUX §3.4) is an
-// owner-only surface, so viewing the collaborator list is grouped under the
-// same check rather than opened up to Editor/Viewer.
 async function requireOwner(documentId: string, userId: string): Promise<DocumentRow> {
   const { doc, role } = await getDocumentForUser(documentId, userId);
   if (role !== "owner") {
@@ -46,9 +42,6 @@ export async function listAccessForOwner(documentId: string, ownerId: string): P
   return rows.map(toAccessEntry);
 }
 
-// FR-19. Re-inviting an existing collaborator with a different role is how
-// a role change happens — there's no dedicated endpoint for it (SRS §5.3),
-// and grantAccessToUser upserts.
 export async function inviteByEmail(
   documentId: string,
   ownerId: string,
@@ -60,7 +53,7 @@ export async function inviteByEmail(
 
   const existingUser = await findUserByEmail(email);
   let entry: DocumentAccessEntry;
-  let changed: boolean; // did this call give them access they didn't already have?
+  let changed: boolean;
 
   if (existingUser) {
     if (existingUser.id === doc.owner_id) {
@@ -77,13 +70,11 @@ export async function inviteByEmail(
     changed = previous?.role !== role;
   }
 
-  // Sharing has succeeded by this point and stays succeeded whatever happens
-  // below: the email is a courtesy, never a precondition.
   let notification: InviteNotification;
   if (!opts.notify) {
     notification = "not-requested";
   } else if (!changed) {
-    notification = "unchanged"; // nothing new to tell them, so don't re-email
+    notification = "unchanged";
   } else {
     const inviter = await findUserById(ownerId);
     notification = await notifyInvitee({
@@ -112,9 +103,6 @@ export async function revokeLink(documentId: string, ownerId: string, token: str
   if (!revoked) throw new ApiError("DOCUMENT_NOT_FOUND", "Share link not found.");
 }
 
-// FR-14/FR-20: revoking a collaborator disconnects their live session
-// within one round trip, reusing the same room-manager primitive Phase 2
-// built for exactly this.
 export async function removeCollaborator(
   documentId: string,
   ownerId: string,
@@ -126,9 +114,6 @@ export async function removeCollaborator(
   getRoomManager().kickUser(documentId, targetUserId, "Your access to this document was removed.");
 }
 
-// Not in SRS §5.3 — cancels a pending (not-yet-resolved) invite by email,
-// the counterpart to removeCollaborator for rows that don't have a userId
-// yet.
 export async function cancelPendingInvite(
   documentId: string,
   ownerId: string,
@@ -139,9 +124,6 @@ export async function cancelPendingInvite(
   if (!removed) throw new ApiError("DOCUMENT_NOT_FOUND", "Pending invite not found.");
 }
 
-// Not in SRS §5.3's endpoint list — added because FR-21/FR-22 require some
-// way to turn "GET /share/:token" into a real access grant. Token-keyed
-// (not nested under /documents/:id) since the client only has the token.
 export async function redeemShareLink(token: string, userId: string): Promise<DocumentSummary> {
   const link = await findShareLink(token);
   if (!link) throw new ApiError("SHARE_LINK_INVALID", "This link is no longer valid.");
@@ -152,8 +134,6 @@ export async function redeemShareLink(token: string, userId: string): Promise<Do
 
   if (doc.owner_id !== userId) {
     const existingRole = await getUserRole(link.document_id, userId);
-    // A link only ever grants — it never downgrades someone who already
-    // has access (e.g. an Editor clicking a Viewer link stays an Editor).
     if (!existingRole) {
       await grantAccessToUser(link.document_id, userId, link.role);
     }

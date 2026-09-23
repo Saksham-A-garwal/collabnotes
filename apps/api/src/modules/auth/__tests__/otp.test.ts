@@ -6,10 +6,6 @@ import * as mailer from "../email/mailer.js";
 import { hashCode, MAX_ATTEMPTS, nameFromEmail, requestLoginCode, verifyLoginCode } from "../otp.service.js";
 import { readCodeFor, signInWithEmail } from "./helpers.js";
 
-// Everything a 6-digit code has to survive: it's a tiny search space, so the
-// protections are (a) never stored in the clear, (b) a hard cap on guesses per
-// code, enforced atomically, (c) short expiry, (d) single use, (e) only the
-// newest email works. These tests pin each one.
 const RUN = Date.now().toString(36);
 const emailFor = (name: string) => `otp-${name}-${RUN}@test.local`;
 const dailyKey = () => `email:daily:${new Date().toISOString().slice(0, 10)}`;
@@ -34,7 +30,6 @@ describe("passwordless sign-in codes", () => {
     expect(row.code_hash).toMatch(/^[0-9a-f]{64}$/);
     expect(row.code_hash).not.toContain(code);
     expect(row.code_hash).toBe(hashCode(email, code));
-    // The same code for a different address hashes differently: no cross-account replay.
     expect(hashCode("someone-else@test.local", code)).not.toBe(row.code_hash);
   });
 
@@ -67,7 +62,6 @@ describe("passwordless sign-in codes", () => {
     for (let i = 1; i < MAX_ATTEMPTS; i++) {
       await expect(verifyLoginCode(email, wrong)).rejects.toMatchObject({ code: "INVALID_CODE" });
     }
-    // The last allowed guess also tells them to start over.
     await expect(verifyLoginCode(email, wrong)).rejects.toMatchObject({
       code: "INVALID_CODE",
       message: expect.stringContaining("Request a new code"),
@@ -79,13 +73,11 @@ describe("passwordless sign-in codes", () => {
     const email = emailFor("burst");
     await requestLoginCode(email);
     const code = await readCodeFor(email);
-    // 40 different wrong guesses fired at once.
     const guesses = Array.from({ length: 40 }, (_, i) => String(100000 + i).padStart(6, "0")).filter((g) => g !== code);
     await Promise.allSettled(guesses.map((g) => verifyLoginCode(email, g)));
 
     const { attempts } = (await pool.query("SELECT attempts FROM login_codes WHERE email = $1", [email])).rows[0];
     expect(attempts).toBeLessThanOrEqual(MAX_ATTEMPTS);
-    // ...and the real code was locked out along with the guessers.
     await expect(verifyLoginCode(email, code)).rejects.toMatchObject({ code: "INVALID_CODE" });
   });
 
@@ -103,7 +95,6 @@ describe("passwordless sign-in codes", () => {
     const first = await readCodeFor(email);
     await requestLoginCode(email);
     const second = await readCodeFor(email);
-    // (Astronomically unlikely to collide; skip the assertion rather than flake.)
     if (first !== second) {
       await expect(verifyLoginCode(email, first)).rejects.toMatchObject({ code: "INVALID_CODE" });
     }
@@ -139,7 +130,7 @@ describe("passwordless sign-in codes", () => {
     await expect(requestLoginCode(email)).rejects.toMatchObject({ code: "SERVICE_UNAVAILABLE" });
 
     const { rows } = await pool.query("SELECT count(*)::int AS n FROM login_codes WHERE email = $1", [email]);
-    expect(rows[0].n).toBe(1); // only the original
+    expect(rows[0].n).toBe(1);
     await expect(verifyLoginCode(email, good)).resolves.toMatchObject({ isNewUser: true });
   });
 

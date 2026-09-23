@@ -4,15 +4,12 @@ import { findSnapshotById, listSnapshots, toSnapshotSummary } from "../../db/que
 import { getRoomManager } from "../../realtime/index.js";
 import { getDocumentForUser } from "../documents/documents.service.js";
 
-// FR-24: Owner/Editor/Viewer can all view version history (SRS §3's role
-// table — no restriction here, unlike restore).
 export async function listSnapshotsForUser(documentId: string, userId: string): Promise<SnapshotSummary[]> {
-  await getDocumentForUser(documentId, userId); // access check only; role unused here
+  await getDocumentForUser(documentId, userId);
   const rows = await listSnapshots(documentId);
   return rows.map(toSnapshotSummary);
 }
 
-// FR-25/FR-26: Owner/Editor can restore; Commenter and Viewer cannot (restoring rewrites content).
 export async function restoreSnapshotForUser(
   documentId: string,
   userId: string,

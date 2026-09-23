@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { consumeGoogleState } from "./googleOAuth.js";
 
-// consumeGoogleState is the whole defence against login CSRF: a Google callback
-// is only honoured if it echoes the state this same tab minted. These pin its
-// rules. (Vitest runs in Node here, so sessionStorage is a minimal stand-in.)
 const KEY = "collabnotes.oauthState";
 
 beforeEach(() => {
@@ -39,8 +36,8 @@ describe("consumeGoogleState", () => {
   it("refuses a callback with no state, or when this browser never started a sign-in", () => {
     remember("abc123", "/");
     expect(consumeGoogleState(null)).toBeNull();
-    expect(consumeGoogleState("abc123")).toBeNull(); // already burned by the failed attempt above
-    expect(consumeGoogleState("anything")).toBeNull(); // nothing pending at all
+    expect(consumeGoogleState("abc123")).toBeNull();
+    expect(consumeGoogleState("anything")).toBeNull();
   });
 
   it("re-validates the stored redirect, so tampered storage can't cause an open redirect", () => {

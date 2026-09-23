@@ -2,10 +2,6 @@ import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
 
-// Ported from the Cortex project's isAuthenticated middleware: Bearer-header
-// extraction + stateless JWT verify (no DB hit — Architecture §8). Distinct
-// error codes for "missing" vs "expired" vs "invalid" so the frontend can
-// tell an expired-but-refreshable session from a truly bad token.
 export type AccessTokenPayload = { sub: string };
 
 export function authGuard(req: Request, res: Response, next: NextFunction): void {
@@ -18,7 +14,6 @@ export function authGuard(req: Request, res: Response, next: NextFunction): void
   const token = header.slice("Bearer ".length);
 
   try {
-    // Pin the algorithm: never let the token choose how it's verified.
     const payload = jwt.verify(token, env.JWT_SECRET, { algorithms: ["HS256"] }) as AccessTokenPayload;
     req.userId = payload.sub;
     next();

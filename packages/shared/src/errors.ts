@@ -1,5 +1,3 @@
-// Standard error envelope + codes. Source of truth: SRS §8.
-
 export type ErrorCode =
   | "VALIDATION_ERROR"
   | "UNAUTHENTICATED"

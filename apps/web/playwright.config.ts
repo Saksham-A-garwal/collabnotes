@@ -1,13 +1,5 @@
 import { defineConfig } from "@playwright/test";
 
-// E2E needs Postgres + Redis up (see README). It starts the API and web dev
-// servers itself. SNAPSHOT_INTERVAL_MS is shortened so the version-history
-// flow doesn't wait ten minutes for an auto-snapshot; because of that, stop
-// any dev servers already on :4000/:5173 first (or set PW_REUSE=1 to reuse
-// them — the restore flow then needs their snapshot interval to be short).
-//
-// PW_CHANNEL=chrome|msedge runs against an installed browser instead of
-// Playwright's bundled Chromium (skips the ~150MB `playwright install`).
 export default defineConfig({
   testDir: "./e2e",
   timeout: 60_000,
@@ -30,11 +22,9 @@ export default defineConfig({
       env: {
         SNAPSHOT_INTERVAL_MS: "2000",
         AUTH_RATE_LIMIT_MAX: "1000",
-        // Sign-in emails go to an in-memory outbox the tests read (refused in production).
         EMAIL_TRANSPORT: "outbox",
         OTP_RESEND_COOLDOWN_SECONDS: "0",
         EMAIL_DAILY_LIMIT: "1000000",
-        // New words become searchable a moment after typing stops (10 s in production).
         SEARCH_INDEX_DEBOUNCE_MS: "300",
       },
     },

@@ -1,9 +1,6 @@
 import type { NotificationDTO } from "@collabnotes/shared";
 import { pool } from "../pool.js";
 
-// A notification is only shown while the person can still open the document it's about:
-// if they've been removed from it, its title and the words spoken there must not keep
-// leaking through their notification list. (Checked in SQL, on every read.)
 const CAN_OPEN = `(d.owner_id = $1 OR EXISTS (SELECT 1 FROM document_access a WHERE a.document_id = d.id AND a.user_id = $1))`;
 
 type Row = {
@@ -65,7 +62,6 @@ export async function countUnread(userId: string): Promise<number> {
   return result.rows[0]!.n;
 }
 
-// Only ever the caller's own rows: the user id is part of every WHERE.
 export async function markRead(userId: string, notificationId: string): Promise<void> {
   await pool.query("UPDATE notifications SET read_at = now() WHERE id = $2 AND user_id = $1 AND read_at IS NULL", [userId, notificationId]);
 }

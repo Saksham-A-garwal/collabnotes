@@ -10,12 +10,6 @@ import { listSnapshotsForUser, restoreSnapshotForUser } from "../../modules/snap
 import { attachRealtime } from "../index.js";
 import { hydrateDocument } from "../persistence.js";
 
-// Proves the part of FR-23/FR-25 that's easy to get subtly wrong: a
-// restore must actually make hydration forget the abandoned edits, not
-// just look right in the live session that requested it. Content lives in
-// a Y.XmlFragment("default") node, matching what Tiptap's Collaboration
-// extension actually writes (restoreContent.ts operates on that field).
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -116,13 +110,10 @@ describe("version history / restore", () => {
     socket.emit("sync:step1", { documentId, stateVector: toArrayBuffer(Y.encodeStateVector(clientDoc)) });
     await sleep(200);
 
-    // Content at the point we'll snapshot.
     appendParagraph(clientDoc, "Hello");
     await sleep(300);
     expect(fragmentText(clientDoc)).toBe("<paragraph>Hello</paragraph>");
 
-    // Force the same snapshot the periodic job would eventually take
-    // (Architecture §6.2), without waiting on SNAPSHOT_INTERVAL_MS.
     const { getRoomManager } = await import("../index.js");
     await getRoomManager().snapshotIfDirty(documentId);
 
@@ -131,28 +122,21 @@ describe("version history / restore", () => {
     expect(snapshots[0]!.triggeredBy).toBe("auto");
     const snapshotId = snapshots[0]!.id;
 
-    // The edit we're about to abandon.
     appendParagraph(clientDoc, "Cruel");
     await sleep(300);
     expect(fragmentText(clientDoc)).toBe("<paragraph>Hello</paragraph><paragraph>Cruel</paragraph>");
 
-    // A Viewer must not be able to restore (FR-26).
     await expect(restoreSnapshotForUser(documentId, viewerId, snapshotId)).rejects.toThrow();
 
-    // Owner restores (FR-25).
     await restoreSnapshotForUser(documentId, ownerId, snapshotId);
     await sleep(300);
 
-    // The live client sees the abandoned edit disappear without reloading.
     expect(fragmentText(clientDoc)).toBe("<paragraph>Hello</paragraph>");
 
-    // Restoring itself becomes a new snapshot entry (FR-23b).
     const snapshotsAfterRestore = await listSnapshotsForUser(documentId, ownerId);
     expect(snapshotsAfterRestore.length).toBe(2);
     expect(snapshotsAfterRestore[0]!.triggeredBy).not.toBe("auto");
 
-    // The real correctness bar: a *fresh* hydration (new client, or a
-    // server restart) must not replay "Cruel" back in.
     const rehydrated = await hydrateDocument(documentId);
     expect(fragmentText(rehydrated)).toBe("<paragraph>Hello</paragraph>");
   });

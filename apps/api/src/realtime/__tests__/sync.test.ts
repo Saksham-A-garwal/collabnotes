@@ -8,10 +8,6 @@ import { env } from "../../config/env.js";
 import { pool } from "../../db/pool.js";
 import { attachRealtime } from "../index.js";
 
-// Development Plan §1.2's "realtime correctness test harness": two
-// in-memory Yjs clients talking to a real server instance, verifying
-// FR-12/FR-13 (optimistic local apply, opaque relay) and FR-17 (server-side
-// viewer write rejection) — not just that the code typechecks.
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -120,7 +116,6 @@ describe("realtime sync core", () => {
     socketB.emit("sync:step1", { documentId, stateVector: toArrayBuffer(Y.encodeStateVector(docB)) });
     await sleep(200);
 
-    // Genuinely concurrent, non-overlapping inserts from two independent clients.
     docA.getText("content").insert(0, "Hello ");
     docB.getText("content").insert(0, "World ");
 

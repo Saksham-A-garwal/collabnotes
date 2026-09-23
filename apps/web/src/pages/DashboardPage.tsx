@@ -40,9 +40,6 @@ function DocumentRow({
 }) {
   const [confirming, setConfirming] = useState(false);
 
-  // Open and Delete are sibling buttons, not one interactive element nested
-  // inside another (invalid for assistive tech, and a stray Enter on the
-  // delete button used to bubble into "open").
   return (
     <div className="doc-row">
       <button type="button" className="doc-open" onClick={onOpen}>
@@ -75,7 +72,6 @@ function DocumentRow({
   );
 }
 
-// Dashboard: create/list/delete documents, per 04-UIUX.md §3.2.
 export default function DashboardPage() {
   const { user, logout, setEmailMentions } = useAuth();
   const [prefError, setPrefError] = useState(false);
@@ -89,9 +85,6 @@ export default function DashboardPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // The editor is its own chunk (see editorPageLoader.ts). Nearly everyone who
-  // reaches the dashboard opens a document next, so fetch it in the background
-  // once the dashboard has settled — off the critical path, ready on click.
   useEffect(() => {
     const t = window.setTimeout(() => void loadEditorPage(), 1000);
     return () => window.clearTimeout(t);
@@ -129,8 +122,6 @@ export default function DashboardPage() {
     loadDocuments();
   }, []);
 
-  // Two characters or more searches the *contents* of your documents on the server;
-  // a single character just narrows the list on screen by title.
   const search = useDocumentSearch(query);
 
   const filtered = useMemo(() => {
@@ -195,7 +186,6 @@ export default function DashboardPage() {
                 <label className="popover-menu-item popover-toggle">
                   <input
                     type="checkbox"
-                    // Accounts from before this setting existed have no value: on, like the server default.
                     checked={user?.emailMentions !== false}
                     onChange={(e) => {
                       setPrefError(false);

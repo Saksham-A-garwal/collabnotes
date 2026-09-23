@@ -2,10 +2,6 @@ import { splitSnippet, type SearchResult } from "@collabnotes/shared";
 import { relativeTime } from "../lib/relativeTime.js";
 import { FileIcon } from "./Icons.js";
 
-// One search result: the title, an excerpt with the matched words highlighted, and
-// (for shared documents) the person's role. Highlights are built from text pieces
-// and rendered as React text nodes, never as HTML, so nothing a document contains
-// can turn into markup.
 export function SearchHit({ result }: { result: SearchResult }) {
   return (
     <>

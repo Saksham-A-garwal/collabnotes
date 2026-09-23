@@ -13,16 +13,10 @@ export function useRealtimeDocument(documentId: string) {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [provider, setProvider] = useState<RealtimeProvider | null>(null);
 
-  // Plain object construction, no I/O — safe during render, and the ref
-  // keeps the same Y.Doc identity across React StrictMode's double-render.
   const docRef = useRef<Y.Doc | null>(null);
   if (!docRef.current) docRef.current = new Y.Doc();
   const doc = docRef.current;
 
-  // Opening the socket is a real side effect and must only happen in an
-  // effect. StrictMode's dev-only mount/unmount/remount cycle exists
-  // specifically to catch side effects created during render (e.g. inside
-  // useMemo, as this used to do) — it doubled the socket.io connection.
   useEffect(() => {
     const p = new RealtimeProvider(documentId, doc);
     setProvider(p);

@@ -7,10 +7,6 @@ import {
   type UserRow,
 } from "../../db/queries/users.js";
 
-// Ported from the Cortex project's passport.js Google strategy verify
-// callback: match by provider+uid first, fall back to matching by email
-// (linking the OAuth identity to the existing account), else
-// create a new account (SRS FR-2: "matched by email if existing").
 export async function findOrCreateGoogleUser(profile: {
   email: string;
   displayName: string;

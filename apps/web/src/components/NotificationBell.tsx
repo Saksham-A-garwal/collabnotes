@@ -5,9 +5,6 @@ import { useNotifications } from "../hooks/useNotifications.js";
 import type { RealtimeProvider } from "../lib/realtimeProvider.js";
 import { relativeTime } from "../lib/relativeTime.js";
 
-// <NotificationBell onOpen provider? /> — a bell with an unread badge and a short list of
-// what happened to you (today: being @mentioned). Choosing one marks it read and opens the
-// thread it's about.
 export function NotificationBell({
   onOpen,
   provider = null,

@@ -4,17 +4,6 @@ import { sendEmail } from "../auth/email/mailer.js";
 import { claimCooldown, takeDailySlot, withinWindow } from "../auth/email/quota.js";
 import { renderInviteEmail } from "../auth/email/templates.js";
 
-// "Notify by email" lets any signed-in owner make CollabNotes email an address
-// of their choosing — which is exactly the shape of an email-spam / phishing
-// relay. So it is fenced in four independent ways, all checked *before* anything
-// is sent, and none of them can ever stop the share itself from succeeding:
-//
-//  1. per (document, recipient) cooldown: flipping a role back and forth, or
-//     re-submitting the form, doesn't send a second email
-//  2. per owner: one person can't fan out to a list of addresses
-//  3. per recipient per day: no address gets buried, however many owners try
-//  4. the shared daily budget, which stops short of the last slots so an
-//     invitation can never leave someone unable to log in
 export const RESEND_INVITE_COOLDOWN_SECONDS = 10 * 60;
 export const OWNER_INVITE_EMAILS_PER_HOUR = 20;
 export const RECIPIENT_INVITE_EMAILS_PER_DAY = 5;
@@ -47,8 +36,6 @@ export async function notifyInvitee(params: {
         role: params.role,
         recipientEmail: email,
         recipientHasAccount: params.recipientHasAccount,
-        // A plain link into the app: no token. Opening it while signed out goes
-        // through sign-in and lands back on the document.
         documentUrl: `${appUrl}/documents/${documentId}`,
         appUrl,
         sentAt: new Date(),

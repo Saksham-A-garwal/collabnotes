@@ -1,9 +1,5 @@
 import type { ReactNode } from "react";
 
-// Inline SVG icons (Feather-style, 24px grid, 2px round strokes). Inline rather
-// than an icon font or image files: no extra requests, they inherit
-// `currentColor`, and the CSP has nothing to allow. All are decorative
-// (aria-hidden) — the buttons that hold them carry the accessible name.
 function Svg({ children, className = "icon" }: { children: ReactNode; className?: string }) {
   return (
     <svg
@@ -138,7 +134,6 @@ export const StrikeIcon = () => (
   </Svg>
 );
 
-// Google's "G" — multi-colour by brand requirement, so it doesn't use currentColor.
 export const GoogleIcon = () => (
   <svg className="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
     <path fill="#4285F4" d="M23.5 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.45a5.52 5.52 0 0 1-2.4 3.62v3h3.87c2.27-2.09 3.58-5.17 3.58-8.81z" />
@@ -148,7 +143,6 @@ export const GoogleIcon = () => (
   </svg>
 );
 
-// Empty-state illustration: a stack of pages.
 export const EmptyPagesArt = () => (
   <svg className="empty-art" viewBox="0 0 96 96" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
     <rect x="22" y="10" width="46" height="60" rx="6" />

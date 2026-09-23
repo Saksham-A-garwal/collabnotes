@@ -7,7 +7,6 @@ export const sharingApi = {
   listAccess: (documentId: string) =>
     apiFetch<{ collaborators: DocumentAccessEntry[] }>(`/documents/${documentId}/access`),
 
-  // `notify` asks the server to also email them; the share itself never depends on it.
   invite: (documentId: string, email: string, role: ShareRole, notify = false) =>
     apiFetch<InviteResponse>(`/documents/${documentId}/share/invite`, {
       method: "POST",

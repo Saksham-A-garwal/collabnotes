@@ -29,8 +29,6 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 const logError = (message: string, extra: Record<string, unknown>): void =>
   console.error(JSON.stringify({ level: "error", message, ...extra }));
 
-// Set once attachRealtime runs (before server.listen(), so before any
-// request could reach the snapshots REST routes that need it).
 let roomManagerInstance: RoomManager | null = null;
 
 export function getRoomManager(): RoomManager {
@@ -38,26 +36,14 @@ export function getRoomManager(): RoomManager {
   return roomManagerInstance;
 }
 
-// Wires the socket.io server: JWT handshake auth (Architecture §8 — verified
-// once at connect time, not per message), document room join/leave with a
-// BR-2 access check, the Yjs sync handshake, and update/awareness relay.
-//
-// Every message from a client is treated as hostile input: shaped-checked and
-// size-capped before use, rate-limited per socket, and run inside a wrapper
-// that swallows (and logs) any failure. That last part is not cosmetic — on
-// Node 22 an exception or unhandled rejection escaping a socket handler kills
-// the whole process, so one malformed message from one editor would otherwise
-// end every live session.
 export function attachRealtime(httpServer: HttpServer) {
   const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(
     httpServer,
     {
       cors: {
         origin: env.CORS_ORIGIN.split(",").map((o) => o.trim()),
-        // Auth is the JWT in the handshake, not a cookie.
         credentials: false,
       },
-      // Drops oversized frames before they're buffered and handed to us.
       maxHttpBufferSize: MAX_UPDATE_BYTES,
     },
   );
@@ -69,7 +55,6 @@ export function attachRealtime(httpServer: HttpServer) {
       return;
     }
     try {
-      // Pin the algorithm: never let the token choose how it's verified.
       const payload = jwt.verify(token, env.JWT_SECRET, { algorithms: ["HS256"] }) as { sub: string };
       socket.data.userId = payload.sub;
       next();
@@ -92,17 +77,6 @@ export function attachRealtime(httpServer: HttpServer) {
     const joinedDocuments = new Set<string>();
     roomManager.joinPersonalRoom(socket, socket.data.userId);
 
-    // Three budgets, because the right response to "too much" differs:
-    //  - overall: a person types ~15 updates/s and moves a cursor a few dozen
-    //    times a second; this allows a burst of 1000 and 300/s sustained. Blowing
-    //    through it is a script, so the socket is disconnected. (Disconnect, not
-    //    drop: a silently dropped *update* would leave that client's document
-    //    diverged, whereas a reconnect re-runs the sync handshake and heals.)
-    //  - awareness (cursor/selection): ephemeral, and each message supersedes the
-    //    last, so over-budget ones are simply dropped — never punish a fast
-    //    typist or a big drag-select for that.
-    //  - joins: each hydrates a document into server memory, so they get a tight
-    //    budget of their own.
     const overall = new TokenBucket(1000, 300);
     const awarenessBudget = new TokenBucket(120, 60);
     const joinBudget = new TokenBucket(40, 2);
@@ -115,8 +89,6 @@ export function attachRealtime(httpServer: HttpServer) {
           return;
         }
         if (kind === "awareness" && !awarenessBudget.take()) return;
-        // Promise.resolve().then(...) also turns a *synchronous* throw into a
-        // rejection we can catch, rather than an uncaught exception.
         Promise.resolve()
           .then(() => handle(payload))
           .catch((err: unknown) => {
@@ -187,8 +159,6 @@ export function attachRealtime(httpServer: HttpServer) {
       }),
     );
 
-    // FR-17: reject (and log) any write from a socket whose role can't edit content
-    // (viewer, commenter) — enforced here regardless of what the UI lets them attempt.
     socket.on(
       "sync:update",
       guarded<unknown>("sync:update", "other", async (payload) => {
@@ -220,8 +190,6 @@ export function attachRealtime(httpServer: HttpServer) {
         try {
           await roomManager.applyUpdate(documentId, update, socket.id);
         } catch (err) {
-          // Malformed Yjs bytes make Y.applyUpdate throw *before* anything is
-          // persisted or relayed, so the room is untouched — just refuse it.
           logError("rejected malformed update", { documentId, userId: socket.data.userId, error: (err as Error)?.message });
           reject(documentId, "VALIDATION_ERROR", "Update rejected.");
         }

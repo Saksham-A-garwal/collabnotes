@@ -21,7 +21,6 @@ let strangerId: string;
 let viewerId: string;
 const documentIds: string[] = [];
 
-// A document with the given paragraphs, indexed the way the live indexer would.
 async function makeDocument(ownerUserId: string, title: string, ...paragraphs: string[]): Promise<string> {
   const row = await pool.query<{ id: string }>("INSERT INTO documents (owner_id, title) VALUES ($1, $2) RETURNING id", [ownerUserId, title]);
   const id = row.rows[0]!.id;
@@ -89,7 +88,7 @@ describe("document search", () => {
     expect(ids).toContain(titleHit);
     expect(ids).toContain(bodyOnly);
     expect(ids.indexOf(titleHit)).toBeLessThan(ids.indexOf(bodyOnly));
-    expect(results.find((r) => r.id === titleHit)!.snippet).toBeNull(); // body has no match: nothing to excerpt
+    expect(results.find((r) => r.id === titleHit)!.snippet).toBeNull();
   });
 
   it("supports quoted phrases and excluded words", async () => {
@@ -101,13 +100,13 @@ describe("document search", () => {
 
     const excluded = (await search(ownerId, "giraffe -midnight")).results.map((r) => r.id);
     expect(excluded).toContain(other);
-    expect(excluded).not.toContain(both); // exclusion still holds even though prefix matching exists
+    expect(excluded).not.toContain(both);
   });
 
   it("never returns a document the caller can't open", async () => {
     const secret = await makeDocument(ownerId, "Private plans", "The confidential zebrafinch acquisition.");
     expect((await search(strangerId, "zebrafinch")).results).toEqual([]);
-    expect((await search(strangerId, "Private plans")).results).toEqual([]); // not by title either
+    expect((await search(strangerId, "Private plans")).results).toEqual([]);
     expect((await search(ownerId, "zebrafinch")).results.map((r) => r.id)).toContain(secret);
   });
 
@@ -118,7 +117,7 @@ describe("document search", () => {
 
     const asViewer = (await search(viewerId, "sharedwalrus")).results.find((r) => r.id === id);
     expect(asViewer?.role).toBe("viewer");
-    expect((await search(strangerId, "sharedwalrus")).results).toEqual([]); // not resolved to an account: no access
+    expect((await search(strangerId, "sharedwalrus")).results).toEqual([]);
 
     await removeAccess(id, viewerId);
     expect((await search(viewerId, "sharedwalrus")).results).toEqual([]);
@@ -129,7 +128,7 @@ describe("document search", () => {
     const decoy = await makeDocument(ownerId, "snakexcase names", "y");
     const ids = (await search(ownerId, "snake_case")).results.map((r) => r.id);
     expect(ids).toContain(literal);
-    expect(ids).not.toContain(decoy); // "_" is not a wildcard
+    expect(ids).not.toContain(decoy);
 
     const before = (await pool.query("SELECT count(*)::int AS n FROM documents")).rows[0].n;
     for (const evil of [`'; DROP TABLE documents; --`, `") OR 1=1 --`, `%`, `\\`, `a & b | !c`, `:*`, `(((`]) {
@@ -154,7 +153,7 @@ describe("document search", () => {
       t.insert(0, "original words");
     });
     await indexDocumentText(id, same, { touch: true });
-    expect(await stamp()).toBe(before); // same text: not an edit
+    expect(await stamp()).toBe(before);
 
     const changed = new Y.Doc();
     changed.transact(() => {
@@ -165,9 +164,9 @@ describe("document search", () => {
       t.insert(0, "brand new words");
     });
     await indexDocumentText(id, changed, { touch: false });
-    expect(await stamp()).toBe(before); // backfill: re-indexing is not an edit
+    expect(await stamp()).toBe(before);
     await indexDocumentText(id, same, { touch: true });
-    expect(await stamp()).toBeGreaterThan(before); // a real content change
+    expect(await stamp()).toBeGreaterThan(before);
   });
 
   describe("HTTP", () => {
@@ -176,7 +175,7 @@ describe("document search", () => {
       expect((await search(ownerId, "a")).status).toBe(400);
       expect((await search(ownerId, "   ")).status).toBe(400);
       const missing = await request(app).get("/api/v1/documents/search").set("Authorization", `Bearer ${tokenFor(ownerId)}`);
-      expect(missing.status).toBe(400); // and "search" is not mistaken for a document id
+      expect(missing.status).toBe(400);
       expect((await search(ownerId, "x".repeat(201))).status).toBe(400);
     });
 

@@ -1,9 +1,5 @@
 import type { UserPublic } from "@collabnotes/shared";
 
-// SRS §5.1 has no `/auth/me` endpoint — login/register return the user
-// object, but a bare refresh doesn't. So the user object is cached
-// alongside the tokens to survive a page reload without an extra round
-// trip; a refresh failure (expired/reused) clears all three together.
 const ACCESS_TOKEN_KEY = "collabnotes.accessToken";
 const REFRESH_TOKEN_KEY = "collabnotes.refreshToken";
 const USER_KEY = "collabnotes.user";
@@ -20,7 +16,6 @@ function safeSet(key: string, value: string): void {
   try {
     localStorage.setItem(key, value);
   } catch {
-    // Ignore — private browsing / blocked storage. Session just won't persist.
   }
 }
 
@@ -28,7 +23,6 @@ function safeRemove(key: string): void {
   try {
     localStorage.removeItem(key);
   } catch {
-    // ignore
   }
 }
 

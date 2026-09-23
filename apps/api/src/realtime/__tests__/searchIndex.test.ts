@@ -36,12 +36,12 @@ describe("search indexing", () => {
 
     indexer.schedule(fx.documentId);
     vi.advanceTimersByTime(100);
-    indexer.schedule(fx.documentId); // more typing: countdown restarts
-    vi.advanceTimersByTime(100); // 200ms since the first edit — would have fired if not debounced
+    indexer.schedule(fx.documentId);
+    vi.advanceTimersByTime(100);
     expect(indexer.pending()).toBe(1);
 
-    vi.advanceTimersByTime(60); // now 160ms since the *last* edit
-    expect(indexer.pending()).toBe(0); // fired
+    vi.advanceTimersByTime(60);
+    expect(indexer.pending()).toBe(0);
     vi.useRealTimers();
     await waitFor(async () => (await searchText(fx.documentId)) === "debounced words");
   });
@@ -51,8 +51,6 @@ describe("search indexing", () => {
     await client.connect();
     const before = (await pool.query("SELECT updated_at FROM documents WHERE id = $1", [fx.documentId])).rows[0].updated_at.getTime();
 
-    // The test client edits a plain Y.Text; the live indexer reads the editor's XML
-    // fragment, so drive the fragment the way the real editor does.
     client.doc.transact(() => {
       const root = client.doc.getXmlFragment("default");
       const p = new Y.XmlElement("paragraph");
@@ -64,7 +62,7 @@ describe("search indexing", () => {
 
     await waitFor(async () => (await searchText(fx.documentId)).includes("zeppelin hangar"), 6000);
     const after = (await pool.query("SELECT updated_at FROM documents WHERE id = $1", [fx.documentId])).rows[0].updated_at.getTime();
-    expect(after).toBeGreaterThan(before); // the dashboard's "Updated …" now reflects the edit
+    expect(after).toBeGreaterThan(before);
     client.socket.disconnect();
   });
 
@@ -75,15 +73,14 @@ describe("search indexing", () => {
       await appendUpdate(other.documentId, Y.encodeStateAsUpdate(d));
       const stamp = async () => (await pool.query("SELECT updated_at FROM documents WHERE id = $1", [other.documentId])).rows[0].updated_at.getTime();
       const before = await stamp();
-      expect(await searchText(other.documentId)).toBe(""); // never indexed
+      expect(await searchText(other.documentId)).toBe("");
       await sleep(15);
 
       const indexed = await backfillSearchIndex();
       expect(indexed).toBeGreaterThanOrEqual(1);
       expect(await searchText(other.documentId)).toBe("legacy pterodactyl content");
-      expect(await stamp()).toBe(before); // re-indexing is not an edit
+      expect(await stamp()).toBe(before);
 
-      // Idempotent: nothing left to do.
       expect(await backfillSearchIndex()).toBe(0);
     } finally {
       await other.cleanup();
@@ -97,7 +94,6 @@ describe("search indexing", () => {
       await backfillSearchIndex();
       expect(await searchText(other.documentId)).toBe("first version");
 
-      // An edit lands after the last index — as if the process died before the debounce fired.
       await pool.query("UPDATE documents SET search_indexed_at = now() - interval '1 hour' WHERE id = $1", [other.documentId]);
       const edited = docWith("first version");
       const p = new Y.XmlElement("paragraph");

@@ -3,10 +3,6 @@ import { z } from "zod";
 
 const body = z.string().trim().min(1, "Write something first.").max(COMMENT_BODY_MAX, `Keep it under ${COMMENT_BODY_MAX} characters.`);
 
-// A Yjs relative position serialises to a small JSON object. The server never
-// interprets it (only the editor does, and treats it as untrusted), so the checks
-// here are about size and shape, not meaning: objects only, and a hard cap so a
-// client can't use this column to store an arbitrary blob.
 const position = z.record(z.string(), z.unknown());
 const anchor = z
   .object({ from: position, to: position })
@@ -20,8 +16,6 @@ export const commentParamSchema = z.object({
   commentId: z.string().uuid(),
 });
 
-// Who the comment @mentions. Only ever ids: the server decides who counts (people who can
-// open the document), so anything else in the list is dropped rather than trusted.
 const mentions = z.array(z.string().uuid()).max(MENTIONS_MAX).default([]);
 
 export const createThreadSchema = z.object({

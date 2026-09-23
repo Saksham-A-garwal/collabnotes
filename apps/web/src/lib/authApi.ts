@@ -2,7 +2,6 @@ import type { AuthResponse, RequestCodeResponse, UserPublic, VerifyCodeResponse 
 import { apiFetch } from "./apiClient.js";
 
 export const authApi = {
-  // Emails a 6-digit code. Answers identically whether or not the address has an account.
   requestCode: (email: string) =>
     apiFetch<RequestCodeResponse>("/auth/email/request", { method: "POST", body: { email }, skipAuthRetry: true }),
 

@@ -15,18 +15,12 @@ type Step = "email" | "code" | "name";
 const errorMessage = (err: unknown): string =>
   err instanceof ApiRequestError ? err.message : "Something went wrong. Please try again.";
 
-// One passwordless flow for both signing in and signing up (04-UIUX.md §3.1):
-//   email -> 6-digit code from that inbox -> (new accounts only) your name.
-// Nothing here reveals whether an address already has an account.
 export default function LoginPage() {
   const { isAuthenticated, user, requestCode, verifyCode, updateDisplayName } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirectTo = safeRedirectPath(searchParams.get("redirect"));
 
-  // Someone who arrives already signed in goes straight on. Captured once at
-  // mount: verifying a code flips isAuthenticated mid-flow, and that must not
-  // yank a brand-new user past the name step.
   const [alreadySignedIn] = useState(isAuthenticated);
 
   const [step, setStep] = useState<Step>("email");
@@ -41,7 +35,6 @@ export default function LoginPage() {
 
   useDocumentTitle(step === "email" ? "Log in" : step === "code" ? "Check your email" : "Welcome");
 
-  // Resend countdown.
   useEffect(() => {
     if (resendIn <= 0) return;
     const t = window.setTimeout(() => setResendIn((s) => s - 1), 1000);
@@ -103,7 +96,6 @@ export default function LoginPage() {
   }
 
   function handleCodeChange(raw: string) {
-    // Accept a paste like "123 456"; keep digits only, max six.
     const digits = raw.replace(/\D/g, "").slice(0, 6);
     setCode(digits);
     if (error) setError(null);

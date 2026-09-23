@@ -1,7 +1,3 @@
-// Fixed collaborator palette — 04-UIUX.md §2.2 ("e.g." hues). #E8559F replaces
-// the sample #E03D8F: neither black nor white text reached 4.5:1 on that pink
-// (scripts/contrast-check.mjs). Every hue below has *some* label color that
-// clears WCAG 1.4.3, and readableTextColor() picks it.
 export const CURSOR_COLORS = [
   "#E0573D",
   "#3D8BE0",
@@ -28,7 +24,6 @@ function luminance(hex: string): number {
   return 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
 }
 
-// Whichever of near-black / white has the higher contrast against `hex`.
 export function readableTextColor(hex: string): string {
   const l = luminance(hex);
   const whiteContrast = 1.05 / (l + 0.05);
@@ -36,8 +31,6 @@ export function readableTextColor(hex: string): string {
   return whiteContrast >= darkContrast ? "#FFFFFF" : "#1A1A1A";
 }
 
-// Same DOM as the default renderer of @tiptap/extension-collaboration-caret, plus
-// a label color chosen for contrast instead of a hardcoded white.
 export function renderCursor(user: { name: string; color: string }): HTMLElement {
   const cursor = document.createElement("span");
   cursor.classList.add("collaboration-cursor__caret");

@@ -1,5 +1,3 @@
-// The CollabNotes mark: a rounded square holding a "C". Drawn as a path rather
-// than a font glyph so it renders identically everywhere (and in the favicon).
 export function BrandMark() {
   return (
     <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">

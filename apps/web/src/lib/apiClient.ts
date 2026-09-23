@@ -15,9 +15,6 @@ export class ApiRequestError extends Error {
 
 let refreshInFlight: Promise<string | null> | null = null;
 
-// Refresh is deduplicated: if several requests 401 at once, only one
-// /auth/refresh call goes out and the rest wait on it (SRS FR-16-adjacent
-// concern — avoids a burst of concurrent rotations racing each other).
 async function refreshAccessToken(): Promise<string | null> {
   const session = loadSession();
   if (!session) return null;

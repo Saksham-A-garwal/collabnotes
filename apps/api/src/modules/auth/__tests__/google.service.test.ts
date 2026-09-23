@@ -1,11 +1,6 @@
 import { OAuth2Client } from "google-auth-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// Google sign-in can't be exercised end to end without real credentials, so
-// this pins the seam we depend on: the OAuth2Client calls exchangeGoogleCode
-// makes (constructor options, getToken, verifyIdToken/getPayload) and how it
-// maps their results and failures. spyOn throws if a method disappears, which
-// is what a major google-auth-library upgrade would break.
 vi.mock("../../../config/env.js", () => ({
   env: { GOOGLE_CLIENT_ID: "client-id", GOOGLE_CLIENT_SECRET: "client-secret", GOOGLE_REDIRECT_URI: "http://localhost/cb" },
 }));

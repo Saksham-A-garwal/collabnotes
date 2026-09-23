@@ -1,24 +1,9 @@
-// Transactional emails, on one shared shell so they read as one product.
-// Deliberately plain and defensive:
-//  - table layout + inline styles, because mail clients ignore most modern CSS;
-//  - no remote images or tracking pixels (clients block them, and they leak
-//    when the email was opened) — the logo is a CSS-drawn mark;
-//  - a dark-mode variant for clients that honour prefers-color-scheme;
-//  - a plain-text alternative, which also improves deliverability;
-//  - every user-supplied value (names, document titles, addresses) is escaped.
-//
-// The sign-in code email carries no links at all, so there is nothing in it to
-// phish with. The invitation email has one button to open the document — a plain
-// link into the app, with no token in it (access is tied to the recipient's
-// verified email, so a forwarded message grants a stranger nothing).
-
 const escapeHtml = (value: string): string =>
   value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 const MONO = "'SF Mono',SFMono-Regular,Menlo,Consolas,'Liberation Mono','Courier New',monospace";
 
-// "Mon, 21 Sep 2026, 06:14 UTC" — unambiguous without knowing the reader's zone.
 function formatUtc(date: Date): string {
   const parts = new Intl.DateTimeFormat("en-GB", {
     weekday: "short",
@@ -35,12 +20,7 @@ function formatUtc(date: Date): string {
 
 const hostOf = (appUrl: string): string => appUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
-// A value headed for a Subject line: no control characters (header injection),
-// no runaway length, and never empty.
 export function subjectSafe(value: string, max = 90): string {
-  // Character-code checks rather than a regex of escapes: clearer, and there is
-  // no escape sequence to get mangled. Control characters, DEL and the Unicode
-  // line/paragraph separators all become spaces.
   let flat = "";
   for (const ch of value) {
     const code = ch.charCodeAt(0);
@@ -119,8 +99,6 @@ ${card}
 </html>`;
 }
 
-// ------------------------------------------------------------- sign-in code
-
 export type SignInCodeEmailInput = {
   code: string;
   email: string;
@@ -175,15 +153,11 @@ export function renderSignInCodeEmail(input: SignInCodeEmailInput): { subject: s
   return { subject, html, text };
 }
 
-// --------------------------------------------------------------- invitation
-
 export type InviteEmailInput = {
   inviterName: string;
   documentTitle: string;
   role: "editor" | "commenter" | "viewer";
   recipientEmail: string;
-  // False when nothing has signed in with this address yet — the email then also
-  // explains how signing in works, since they have no account to open it from.
   recipientHasAccount: boolean;
   documentUrl: string;
   appUrl: string;
@@ -194,8 +168,6 @@ export function renderInviteEmail(input: InviteEmailInput): { subject: string; h
   const { role, documentUrl, appUrl, recipientHasAccount } = input;
   const inviter = input.inviterName.trim() || "Someone";
   const title = input.documentTitle.trim() || "Untitled document";
-  // "edit", "comment on", "view" read naturally after "invited you to"; the bare
-  // verb is what fits "You can ...".
   const can = role === "editor" ? "edit" : role === "commenter" ? "comment on" : "view";
   const canShort = role === "editor" ? "edit" : role === "commenter" ? "comment" : "view";
   const subject = `${subjectSafe(inviter, 40)} invited you to “${subjectSafe(title, 60)}”`;
@@ -260,12 +232,9 @@ export function renderInviteEmail(input: InviteEmailInput): { subject: string; h
   return { subject, html, text };
 }
 
-// ------------------------------------------------------------------ mention
-
 export type MentionEmailInput = {
   authorName: string;
   documentTitle: string;
-  // The text the thread is attached to, and what was said.
   quote: string;
   body: string;
   threadUrl: string;
@@ -274,7 +243,6 @@ export type MentionEmailInput = {
   sentAt: Date;
 };
 
-// A comment can be long; an email is a nudge to go and read it, not the conversation.
 function excerpt(value: string, max: number): string {
   const flat = value.replace(/\r\n/g, "\n").trim();
   return flat.length > max ? flat.slice(0, max - 1).trimEnd() + String.fromCharCode(0x2026) : flat;

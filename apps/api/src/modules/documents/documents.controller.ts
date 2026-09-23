@@ -17,7 +17,6 @@ export async function handleListDocuments(req: Request, res: Response): Promise<
 }
 
 export async function handleSearchDocuments(req: Request, res: Response): Promise<void> {
-  // validate() has already parsed and defaulted these.
   const { q, limit } = req.query as unknown as { q: string; limit: number };
   const body: SearchResponse = { results: await searchDocuments(req.userId!, q, limit) };
   res.status(200).json(body);

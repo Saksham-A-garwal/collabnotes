@@ -10,9 +10,6 @@ export type ShareLinkRow = {
   revoked: boolean;
 };
 
-// >=128 bits entropy per SRS FR-18; 32 random bytes (256 bits) is a
-// generous margin, matching the refresh-token generation convention
-// elsewhere in this codebase.
 export async function createShareLink(documentId: string, role: Role): Promise<ShareLinkRow> {
   const token = crypto.randomBytes(32).toString("hex");
   const result = await pool.query<ShareLinkRow>(

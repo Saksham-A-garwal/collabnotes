@@ -11,9 +11,6 @@ import {
   setResolved,
 } from "./comments.service.js";
 
-// Every mutation answers with the thread as it now stands, so the caller can just
-// replace its copy — the same thing other viewers receive over the socket.
-
 export async function handleListComments(req: Request, res: Response): Promise<void> {
   const body: CommentsResponse = { threads: await listComments(req.params.id!, req.userId!) };
   res.status(200).json(body);

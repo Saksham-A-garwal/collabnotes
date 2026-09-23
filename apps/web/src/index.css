@@ -1,11 +1,4 @@
-/* CollabNotes design system.
-   Quiet, content-first, Notion-inspired: warm neutrals, one blue accent, thin
-   borders, generous whitespace. Every text/background pairing below was checked
-   against WCAG AA (4.5:1 text, 3:1 UI boundaries) — see the axe scan in
-   e2e/a11y.spec.ts, which enforces it in both colour schemes. */
-
 :root {
-  /* System font stack: nothing to download, nothing for the CSP to allow. */
   --font-ui: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 
@@ -18,8 +11,8 @@
   --bg-canvas: #ffffff;
   --bg-chrome: #f7f7f5;
   --bg-hover: #efeeec;
-  --border: #e3e2e0; /* dividers and card edges (decorative) */
-  --border-strong: #8d8c87; /* input boundaries: 3:1 against the canvas */
+  --border: #e3e2e0;
+  --border-strong: #8d8c87;
   --text-primary: #37352f;
   --text-secondary: #6a6964;
   --accent: #1b6fd1;
@@ -127,7 +120,6 @@ p {
   top: var(--space-md);
 }
 
-/* ---------------------------------------------------------------- brand */
 .brand {
   display: inline-flex;
   align-items: center;
@@ -145,7 +137,6 @@ p {
   color: var(--text-primary);
 }
 
-/* ------------------------------------------------------------- controls */
 .card {
   background: var(--bg-canvas);
   border: 1px solid var(--border);
@@ -417,7 +408,6 @@ button.avatar:hover {
   background: var(--bg-hover);
 }
 
-/* ----------------------------------------------------------- skeletons */
 .skeleton {
   border-radius: var(--radius-control);
   background: linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-chrome) 50%, var(--bg-hover) 75%);
@@ -443,7 +433,6 @@ button.avatar:hover {
   }
 }
 
-/* ----------------------------------------------------------------- auth */
 .auth-page {
   min-height: 100vh;
   display: flex;
@@ -520,7 +509,7 @@ button.avatar:hover {
   letter-spacing: 0.5em;
   text-align: center;
   min-height: 56px;
-  padding-left: 0.5em; /* re-centres the text: letter-spacing trails the last digit */
+  padding-left: 0.5em;
 }
 
 .resend-row {
@@ -533,7 +522,6 @@ button.avatar:hover {
   color: var(--text-secondary);
 }
 
-/* ------------------------------------------------------------ app header */
 .app-header {
   position: sticky;
   top: 0;
@@ -554,7 +542,6 @@ button.avatar:hover {
   gap: var(--space-sm);
 }
 
-/* ------------------------------------------------------------ dashboard */
 .page {
   width: 100%;
   max-width: var(--page-width);
@@ -679,11 +666,8 @@ button.avatar:hover {
   font: inherit;
   font-size: var(--text-sm);
   cursor: pointer;
-  /* WCAG 2.2 target size (2.5.8): comfortably above 24x24 CSS px. */
   min-width: 56px;
   min-height: 32px;
-  /* Sits over the "Updated …" time, which hides while it's showing — so the
-     time stays flush right instead of a gap being reserved for a hidden button. */
   position: absolute;
   right: 6px;
   top: 50%;
@@ -751,7 +735,6 @@ button.avatar:hover {
   margin: 4px 0;
 }
 
-/* --------------------------------------------------------------- editor */
 .editor-chrome {
   position: sticky;
   top: 0;
@@ -787,7 +770,7 @@ button.avatar:hover {
 }
 
 .editor-title {
-  margin: 0 0 0 -8px; /* optical alignment: the title button's padding lines its text up with the icon above */
+  margin: 0 0 0 -8px;
   font-size: var(--text-base);
   font-weight: 600;
   line-height: 1.4;
@@ -892,7 +875,6 @@ button.avatar:hover {
   max-width: var(--content-width);
 }
 
-/* Document typography — what people actually read and write in. */
 .editor-canvas .ProseMirror {
   font-size: var(--text-base);
   line-height: 1.65;
@@ -987,7 +969,6 @@ button.avatar:hover {
   pointer-events: none;
 }
 
-/* Remote collaborator cursors, rendered by @tiptap/extension-collaboration-caret (via renderCursor) */
 .collaboration-cursor__caret {
   position: relative;
   margin-left: -1px;
@@ -1013,12 +994,10 @@ button.avatar:hover {
   white-space: nowrap;
 }
 
-/* WCAG 2.4.7: the editing surface shows where focus is, without a heavy box. */
 .editor-canvas:focus-within {
   outline: none;
 }
 
-/* ------------------------------------------------- history panel, modals */
 .history-panel {
   position: fixed;
   top: 0;
@@ -1131,7 +1110,6 @@ button.avatar:hover {
   font-size: var(--text-sm);
 }
 
-/* ------------------------------------------------------------ not found */
 .center-page {
   min-height: 100vh;
   display: flex;
@@ -1152,9 +1130,7 @@ button.avatar:hover {
   max-width: 420px;
 }
 
-/* ------------------------------------------------------------ responsive */
 @media (max-width: 640px) {
-  /* Status drops under the title instead of fighting it (and the buttons) for width. */
   .editor-title-block {
     flex-direction: column;
     align-items: flex-start;
@@ -1164,7 +1140,6 @@ button.avatar:hover {
   .btn-label {
     display: none;
   }
-  /* Six or seven controls share the editor header: icon buttons get tighter so they all fit. */
   .app-header-actions {
     gap: 2px;
   }
@@ -1210,7 +1185,6 @@ button.avatar:hover {
   stroke: var(--bg-canvas);
 }
 
-/* ------------------------------------------------- invite: notify checkbox */
 .share-invite-row {
   flex-wrap: wrap;
 }
@@ -1247,13 +1221,11 @@ button.avatar:hover {
   overflow-wrap: anywhere;
 }
 
-/* A shared-but-not-emailed outcome isn't an error, but it is worth noticing. */
 .invite-result.warn {
   background: var(--accent-soft);
   border-color: var(--accent);
 }
 
-/* ---------------------------------------------------------------- search */
 .search-mark {
   background: var(--accent-soft);
   color: inherit;
@@ -1302,7 +1274,6 @@ button.avatar:hover {
   line-height: 1.5;
 }
 
-/* Quick switcher (Ctrl/Cmd + K) */
 .qs-backdrop {
   align-items: flex-start;
   padding-top: 12vh;
@@ -1401,7 +1372,6 @@ button.avatar:hover {
   }
 }
 
-/* ------------------------------------------------------------------ export */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -1429,15 +1399,10 @@ button.avatar:hover {
   color: var(--text-secondary);
 }
 
-/* The document title, shown only in print. */
 .print-title {
   display: none;
 }
 
-/* Print / Save as PDF: everything except the document disappears, colours go
-   to plain black on white whatever the screen theme, and long documents break
-   across pages without splitting headings, quotes or code blocks. Loaded last so
-   it wins over the dark-mode token overrides. */
 @media print {
   :root {
     --bg-canvas: #ffffff;
@@ -1512,7 +1477,6 @@ button.avatar:hover {
     text-decoration: underline;
   }
 
-  /* A printed link is useless unless you can see where it goes. */
   .editor-canvas .ProseMirror a[href^="http"]::after {
     content: " (" attr(href) ")";
     font-size: 0.85em;
@@ -1521,7 +1485,6 @@ button.avatar:hover {
   }
 }
 
-/* ------------------------------------------------------------- comments */
 :root {
   --comment-bg: rgba(255, 196, 0, 0.3);
   --comment-bg-active: rgba(255, 196, 0, 0.55);
@@ -1535,8 +1498,6 @@ button.avatar:hover {
   }
 }
 
-/* Text that has a comment thread. Highlight plus an underline, so the mark doesn't
-   rely on colour alone. */
 .comment-anchor {
   background: var(--comment-bg);
   border-bottom: 2px solid var(--comment-edge);
@@ -1564,8 +1525,6 @@ button.avatar:hover {
   box-shadow: var(--shadow-popover);
 }
 
-/* The panel sits under the sticky header, beside the document. The header's height
-   is measured in the editor page and passed in as --chrome-bottom. */
 .comments-panel {
   position: fixed;
   top: var(--chrome-bottom, 110px);
@@ -1668,7 +1627,6 @@ button.avatar:hover {
   gap: var(--space-sm);
   font-size: var(--text-sm);
 }
-/* Comments are plain text: keep line breaks, never interpret markup. */
 .comment-body {
   margin: 2px 0 0;
   font-size: var(--text-sm);
@@ -1723,7 +1681,6 @@ button.avatar:hover {
   margin-top: var(--space-sm);
 }
 
-/* Narrow screens: the panel becomes a sheet over the bottom of the page instead of a sidebar. */
 @media (max-width: 900px) {
   .comments-panel {
     top: auto;
@@ -1752,7 +1709,6 @@ button.avatar:hover {
   }
 }
 
-/* -------------------------------------------------------------- mentions */
 .composer-field {
   position: relative;
 }
@@ -1798,7 +1754,6 @@ button.avatar:hover {
   accent-color: var(--accent);
 }
 
-/* ------------------------------------------------------------ notification bell */
 .bell {
   position: relative;
 }

@@ -4,15 +4,6 @@ import { pool } from "../db/pool.js";
 import { extractPlainText } from "./extractText.js";
 import { hydrateDocument } from "./persistence.js";
 
-// Writes a document's plain text into documents.search_text (the generated
-// search_vector column follows by itself).
-//
-// `touch` bumps updated_at, but only when the text actually changed. Until now
-// only a rename moved updated_at, so the dashboard's "Updated …" time ignored
-// edits to the content; indexing after an edit is the natural place to fix that.
-// The startup backfill passes touch=false: re-indexing an old document because
-// the *index* is new is not an edit, and it must not make every document look
-// as if it had just been changed.
 export async function indexDocumentText(
   documentId: string,
   doc: Y.Doc,
@@ -31,16 +22,13 @@ export async function indexDocumentText(
   );
 }
 
-// Debounced per document: typing produces an update per keystroke, and re-indexing
-// on each would be hundreds of writes for one sentence. Each edit restarts the
-// countdown; when it finally fires, the document's *current* text is indexed.
 export function createSearchIndexer(getDoc: (documentId: string) => Y.Doc | undefined) {
   const timers = new Map<string, NodeJS.Timeout>();
 
   async function run(documentId: string): Promise<void> {
     timers.delete(documentId);
     const doc = getDoc(documentId);
-    if (!doc) return; // room gone (e.g. the document was deleted)
+    if (!doc) return;
     try {
       await indexDocumentText(documentId, doc, { touch: true });
     } catch (err) {
@@ -53,11 +41,10 @@ export function createSearchIndexer(getDoc: (documentId: string) => Y.Doc | unde
       const existing = timers.get(documentId);
       if (existing) clearTimeout(existing);
       const timer = setTimeout(() => void run(documentId), env.SEARCH_INDEX_DEBOUNCE_MS);
-      timer.unref(); // never keep the process (or a test run) alive just for this
+      timer.unref();
       timers.set(documentId, timer);
     },
 
-    // Index now and cancel the countdown (tests, and anywhere "up to date" matters).
     async flush(documentId: string): Promise<void> {
       const existing = timers.get(documentId);
       if (existing) clearTimeout(existing);
@@ -76,9 +63,6 @@ export function createSearchIndexer(getDoc: (documentId: string) => Y.Doc | unde
 
 export type SearchIndexer = ReturnType<typeof createSearchIndexer>;
 
-// Brings the index up to date for documents that predate it, or were edited in
-// the last few seconds before a restart (a pending debounce dies with the
-// process). Runs in the background at startup and never blocks serving.
 export async function backfillSearchIndex(): Promise<number> {
   let indexed = 0;
   const seen = new Set<string>();
@@ -91,7 +75,7 @@ export async function backfillSearchIndex(): Promise<number> {
        LIMIT 25`,
     );
     const fresh = rows.filter((r) => !seen.has(r.id));
-    if (fresh.length === 0) break; // nothing left, or only ones that failed before
+    if (fresh.length === 0) break;
 
     for (const { id } of fresh) {
       seen.add(id);

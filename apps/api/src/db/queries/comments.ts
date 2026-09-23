@@ -25,9 +25,6 @@ type ThreadRow = {
   comments: CommentJson[];
 };
 
-// A thread with all its comments and the display names of everyone involved, in
-// one statement — so listing a document's threads is one round trip, not one per
-// thread. json_agg keeps the comments in the order they were written.
 const THREAD_SELECT = `
   SELECT t.id, t.document_id, t.quote, t.anchor, t.created_at, t.resolved_at,
          ua.id AS author_id, ua.display_name AS author_name,
@@ -98,8 +95,6 @@ export async function getThread(threadId: string): Promise<CommentThreadDTO | nu
   return row ? toThreadDTO(row) : null;
 }
 
-// A thread and its first comment are created together or not at all: a thread
-// with no comment would be an empty box in everyone's margin.
 export async function createThreadWithComment(params: {
   documentId: string;
   authorId: string;
@@ -172,8 +167,6 @@ export async function deleteThread(threadId: string): Promise<void> {
   await pool.query("DELETE FROM comment_threads WHERE id = $1", [threadId]);
 }
 
-// Everyone who can be @mentioned in a document: its owner and each person it is shared
-// with (pending invites have no account yet, so they aren't people yet). Names only.
 export async function listPeople(documentId: string): Promise<CommentPerson[]> {
   const result = await pool.query<{ id: string; display_name: string }>(
     `SELECT u.id, u.display_name FROM documents d JOIN users u ON u.id = d.owner_id WHERE d.id = $1

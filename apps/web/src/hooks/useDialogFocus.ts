@@ -3,9 +3,6 @@ import { useEffect, type RefObject } from "react";
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-// WCAG 2.1.1 / 2.4.3: when a dialog opens, focus moves into it; a modal
-// traps Tab so keyboard users can't wander into the page behind it; when it
-// closes, focus returns to whatever opened it.
 export function useDialogFocus(ref: RefObject<HTMLElement | null>, { trap }: { trap: boolean }): void {
   useEffect(() => {
     const container = ref.current;

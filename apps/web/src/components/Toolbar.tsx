@@ -1,15 +1,7 @@
 import { useEditorState, type Editor } from "@tiptap/react";
 import { CodeIcon, LinkIcon, ListIcon, OrderedListIcon, QuoteIcon, StrikeIcon } from "./Icons.js";
 
-// <Toolbar disabled editor /> — 04-UIUX.md §3.3: bold, italic, underline,
-// heading dropdown, bullet/numbered lists, link. Disabled/hidden entirely
-// for Viewer role. Icon-only buttons carry aria-label, not just a glyph
-// (§10 accessibility: 4.1.2 Name, Role, Value).
 export function Toolbar({ editor, disabled }: { editor: Editor | null; disabled: boolean }) {
-  // Tiptap 3's useEditor no longer re-renders on every transaction, so the
-  // active state of each button is subscribed to explicitly here — the
-  // toolbar re-renders only when one of these values actually changes.
-  // (Called before the early return below: hooks can't be conditional.)
   const active = useEditorState({
     editor,
     selector: ({ editor: e }) => ({

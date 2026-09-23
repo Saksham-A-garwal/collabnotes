@@ -5,7 +5,6 @@ import { inviteByEmail } from "../../modules/sharing/sharing.service.js";
 import { hydrateDocument } from "../persistence.js";
 import { createFixture, sleep, TestClient, waitFor, type Fixture } from "./harness.js";
 
-// SRS §8 "Edge Cases (must be explicitly handled, not just 'should work')".
 describe("SRS §8 edge cases", () => {
   let fx: Fixture;
 
@@ -22,14 +21,12 @@ describe("SRS §8 edge cases", () => {
     await a.connect();
     await b.connect();
 
-    // Both insert at index 0 of the same (empty) text concurrently.
     a.doc.getText("content").insert(0, "AAAA");
     b.doc.getText("content").insert(0, "BBBB");
 
     await waitFor(() => a.text() === b.text() && a.text().length === 8);
     expect(a.text()).toContain("AAAA");
     expect(a.text()).toContain("BBBB");
-    // No conflict UI, no error event — the CRDT resolved it.
     expect(a.events.length + b.events.length).toBe(0);
   });
 
@@ -41,20 +38,17 @@ describe("SRS §8 edge cases", () => {
     expect(editor.role).toBe("editor");
 
     const before = owner.text();
-    // Owner downgrades the connected editor to viewer.
     await inviteByEmail(fx.documentId, fx.ownerId, `edge-editor@test.local`, "viewer");
     await waitFor(() => editor.events.some((e) => e.name === "document:role-changed"));
     expect(editor.events.find((e) => e.name === "document:role-changed")?.payload).toMatchObject({
       role: "viewer",
     });
 
-    // An in-flight edit from that socket must not reach anyone (FR-14/FR-17).
     editor.insert("SNEAKY");
     await sleep(300);
     expect(owner.text()).toBe(before);
     expect(editor.events.some((e) => e.name === "document:error")).toBe(true);
 
-    // ...and upgrading back works live too.
     await inviteByEmail(fx.documentId, fx.ownerId, `edge-editor@test.local`, "editor");
     await waitFor(() => editor.events.filter((e) => e.name === "document:role-changed").length === 2);
     const persisted = await hydrateDocument(fx.documentId);
@@ -80,9 +74,6 @@ describe("SRS §8 edge cases", () => {
   });
 
   it("Redis failing (quota exhausted / outage) degrades to single-instance instead of crashing or losing edits", async () => {
-    // Real-world trigger: a hosted Redis free tier hits its command limit and
-    // every PUBLISH starts rejecting. That rejection used to escape an async
-    // socket handler — an unhandled rejection, which kills the Node process.
     const unhandled: unknown[] = [];
     const onUnhandled = (reason: unknown) => unhandled.push(reason);
     process.on("unhandledRejection", onUnhandled);
@@ -96,14 +87,14 @@ describe("SRS §8 edge cases", () => {
 
       const before = b.text();
       a.insert("still-works;");
-      await waitFor(() => b.text() === before + "still-works;"); // local relay unaffected
+      await waitFor(() => b.text() === before + "still-works;");
 
       await sleep(200);
-      expect(publish).toHaveBeenCalled(); // it really did try, and fail
-      expect(unhandled).toHaveLength(0); // ...without an escaped rejection
+      expect(publish).toHaveBeenCalled();
+      expect(unhandled).toHaveLength(0);
 
       const persisted = await hydrateDocument(fx.documentId);
-      expect(persisted.getText("content").toString()).toContain("still-works;"); // durable too
+      expect(persisted.getText("content").toString()).toContain("still-works;");
     } finally {
       publish.mockRestore();
       process.off("unhandledRejection", onUnhandled);

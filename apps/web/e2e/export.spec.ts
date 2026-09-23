@@ -2,12 +2,8 @@ import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { createDocument, editor, emailFor, invite, joinAsInvited, registerFromScratch } from "./helpers.js";
 
-// Getting a document out: Markdown file, Markdown on the clipboard, and
-// print / save as PDF (checked through the print stylesheet).
-
 async function writeSampleDocument(page: Page) {
   await editor(page).click();
-  // Markdown shortcuts: the editor turns these into real headings, lists, quotes, code.
   await page.keyboard.type("# Project kickoff");
   await page.keyboard.press("Enter");
   await page.keyboard.type("A note with ");
@@ -48,7 +44,7 @@ test("Download as Markdown: a .md file named after the document, with real Markd
 
   expect(download.suggestedFilename()).toBe("Untitled document.md");
   const md = await readFile((await download.path())!, "utf8");
-  expect(md.startsWith("# Untitled document\n\n")).toBe(true); // the title, which isn't in the editor
+  expect(md.startsWith("# Untitled document\n\n")).toBe(true);
   expect(md).toContain("# Project kickoff");
   expect(md).toContain("**bold**");
   expect(md).toMatch(/(\*|_)italic\1/);
@@ -86,10 +82,10 @@ test("Print / PDF layout: only the title and the document remain, on white, even
   await writeSampleDocument(page);
 
   await expect(page.locator(".editor-chrome")).toBeVisible();
-  await expect(page.locator(".print-title")).toBeHidden(); // not on screen
+  await expect(page.locator(".print-title")).toBeHidden();
 
   await page.emulateMedia({ media: "print" });
-  await expect(page.locator(".editor-chrome")).toBeHidden(); // header and toolbar gone
+  await expect(page.locator(".editor-chrome")).toBeHidden();
   await expect(page.locator(".print-title")).toBeVisible();
   await expect(page.locator(".print-title")).toHaveText("Untitled document");
   await expect(editor(page)).toContainText("Project kickoff");
@@ -98,7 +94,7 @@ test("Print / PDF layout: only the title and the document remain, on white, even
     page: getComputedStyle(document.body).backgroundColor,
     text: getComputedStyle(document.querySelector(".ProseMirror")!).color,
   }));
-  expect(colors).toEqual({ page: "rgb(255, 255, 255)", text: "rgb(0, 0, 0)" }); // ink-friendly, not a dark theme
+  expect(colors).toEqual({ page: "rgb(255, 255, 255)", text: "rgb(0, 0, 0)" });
   await context.close();
 });
 
@@ -112,7 +108,7 @@ test("A viewer can export too, and Escape closes the menu and returns focus to t
   await alice.keyboard.press("Escape");
 
   const bob = await joinAsInvited(browser, "Viewer");
-  await expect(bob.page.getByRole("toolbar", { name: "Formatting" })).toHaveCount(0); // read-only
+  await expect(bob.page.getByRole("toolbar", { name: "Formatting" })).toHaveCount(0);
   await expect(editor(bob.page)).toContainText("Project kickoff");
 
   await exportButton(bob.page).click();

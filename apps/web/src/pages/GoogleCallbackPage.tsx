@@ -6,8 +6,6 @@ import { useDocumentTitle } from "../hooks/useDocumentTitle.js";
 import { ApiRequestError } from "../lib/apiClient.js";
 import { consumeGoogleState } from "../lib/googleOAuth.js";
 
-// Target of GOOGLE_REDIRECT_URI (SRS FR-2): Google redirects here with
-// ?code=...&state=..., and the code gets POSTed to /auth/oauth/google.
 export default function GoogleCallbackPage() {
   const [params] = useSearchParams();
   const { loginWithGoogleCode } = useAuth();
@@ -25,10 +23,6 @@ export default function GoogleCallbackPage() {
       return;
     }
 
-    // Only finish a sign-in *this browser started*. The state was minted when
-    // the person clicked "Continue with Google" and is single use; a callback
-    // without it (a forged link, a replay, an expired tab) is refused before
-    // the code is ever sent to the server.
     const pending = consumeGoogleState(params.get("state"));
     if (!pending) {
       setError("That sign-in link isn't valid or has expired. Please try again.");

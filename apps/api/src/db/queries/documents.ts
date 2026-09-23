@@ -48,9 +48,6 @@ export async function findDocumentById(id: string): Promise<DocumentRow | null> 
   return result.rows[0] ?? null;
 }
 
-// Owner is derived from documents.owner_id; collaborator role comes from
-// document_access (BR-2: role is looked up server-side on every request,
-// never trusted from the client).
 export async function getUserRole(documentId: string, userId: string): Promise<Role | null> {
   const result = await pool.query<{ role: Role | null }>(
     `SELECT CASE WHEN d.owner_id = $2 THEN 'owner' ELSE da.role END AS role

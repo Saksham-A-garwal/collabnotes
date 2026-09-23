@@ -10,10 +10,6 @@ function triggeredByLabel(snapshot: SnapshotSummary): string {
   return snapshot.triggeredBy === "auto" ? "Auto-saved" : `Saved by ${snapshot.triggeredBy.displayName}`;
 }
 
-// <VersionHistoryPanel documentId open onClose onRestored /> — 04-UIUX.md
-// §3.5/§5: right-side slide-over, newest first, a lightweight inline
-// confirm per row rather than a heavy modal (restoring isn't permanently
-// destructive — it creates a new snapshot, SRS FR-23b).
 function VersionHistoryPanelContent({
   documentId,
   onClose,
@@ -129,8 +125,6 @@ function VersionHistoryPanelContent({
   );
 }
 
-// Content only mounts while open, so its focus-in / focus-restore effect
-// (useDialogFocus) fires exactly when the dialog appears and disappears.
 export function VersionHistoryPanel({
   open,
   ...rest

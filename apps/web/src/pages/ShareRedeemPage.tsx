@@ -6,9 +6,6 @@ import { useDocumentTitle } from "../hooks/useDocumentTitle.js";
 import { ApiRequestError } from "../lib/apiClient.js";
 import { sharingApi } from "../lib/sharingApi.js";
 
-// FR-21/FR-22: unauthenticated visitors are sent to log in and resume here;
-// a revoked or malformed link gets its own clear state (UIUX §8), never a
-// generic 404/500.
 export default function ShareRedeemPage() {
   const { token } = useParams<{ token: string }>();
   const { isAuthenticated } = useAuth();

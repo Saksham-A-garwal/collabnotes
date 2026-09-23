@@ -12,7 +12,6 @@ async function respondWithTokenPair(res: Response, status: number, user: UserRow
   res.status(status).json(body);
 }
 
-// Same answer whether or not the address has an account (see requestLoginCode).
 export async function handleRequestCode(req: Request, res: Response): Promise<void> {
   res.status(200).json(await requestLoginCode(req.body.email));
 }
@@ -39,11 +38,6 @@ export async function handleGoogleOAuth(req: Request, res: Response): Promise<vo
   await respondWithTokenPair(res, 200, user);
 }
 
-// Ported from the Cortex project's handleRefresh: same three-way branch on
-// rotation result (ok / reuse detected / anything else invalid), adapted to
-// the SRS's JSON-body refresh contract (no cookie) and its single
-// REFRESH_TOKEN_INVALID_OR_REUSED error code covering both invalid and
-// reused tokens (§5.1, §8) rather than Cortex's two distinct codes.
 export async function handleRefresh(req: Request, res: Response): Promise<void> {
   const result = await rotateRefreshToken(req.body.refreshToken);
 

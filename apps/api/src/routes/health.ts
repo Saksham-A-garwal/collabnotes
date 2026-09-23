@@ -4,7 +4,6 @@ import { redisPub } from "../lib/redis.js";
 
 export const healthRouter = Router();
 
-// GET /health — verifies Postgres and Redis connectivity (Architecture §10).
 healthRouter.get("/health", async (_req, res) => {
   const checks = { postgres: false, redis: false };
 
@@ -16,9 +15,6 @@ healthRouter.get("/health", async (_req, res) => {
   }
 
   try {
-    // Fail fast rather than letting a ping queue behind ioredis's offline
-    // queue and retry backoff (which could take tens of seconds) if Redis
-    // is genuinely unreachable, not just still connecting.
     if (redisPub.status !== "ready") throw new Error("Redis not connected");
     await redisPub.ping();
     checks.redis = true;

@@ -29,11 +29,6 @@ export async function listDocuments(userId: string): Promise<DocumentListRow[]> 
   return listDocumentsForUser(userId);
 }
 
-// Looks up the document and the requester's role together. A requester with
-// zero access rows gets DOCUMENT_NOT_FOUND rather than FORBIDDEN — SRS §8's
-// stated rationale (never confirm a document's existence to someone who was
-// never granted access) applies the same way whether they're reading,
-// renaming, or deleting it.
 async function requireAccess(
   documentId: string,
   userId: string,
@@ -72,7 +67,5 @@ export async function deleteDocumentForUser(documentId: string, userId: string):
     throw new ApiError("FORBIDDEN", "Only the document owner can delete it.");
   }
   await deleteDocumentRow(documentId);
-  // FR-11: the (Phase 2) WS room manager listens for this to force-disconnect
-  // and notify any clients still connected to this document's room.
   documentEvents.emit("document:deleted", documentId);
 }

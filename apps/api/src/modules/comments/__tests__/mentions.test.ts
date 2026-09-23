@@ -14,7 +14,6 @@ const app = createApp();
 const tokenFor = (userId: string) => jwt.sign({ sub: userId }, env.JWT_SECRET, { expiresIn: "5m" });
 const dailyKey = () => `email:daily:${new Date().toISOString().slice(0, 10)}`;
 
-// Fixture users: owner, editor, viewer (harness), plus a commenter and an outsider added here.
 describe("mentions", () => {
   let fx: Fixture;
   let commenterId: string;
@@ -63,7 +62,6 @@ describe("mentions", () => {
         expect(res.status).toBe(200);
         const ids = res.body.people.map((p: { id: string }) => p.id).sort();
         expect(ids).toEqual([fx.ownerId, fx.editorId, fx.viewerId, commenterId].sort());
-        // No email addresses: a commenter shouldn't learn everyone's address.
         expect(JSON.stringify(res.body)).not.toContain("@test.local");
         expect(res.body.people.every((p: object) => Object.keys(p).sort().join() === "displayName,id")).toBe(true);
       }
@@ -104,7 +102,6 @@ describe("mentions", () => {
       expect(mail.subject).toBe("mnt owner mentioned you in “Q3 <planning>”");
       expect(mail.text).toContain(`/documents/${fx.documentId}?thread=${thread.id}`);
       expect(mail.text).toContain("Could you review this <b>bit</b>?");
-      // Everything a person typed is escaped in the HTML part.
       expect(mail.html).toContain("Could you review this &lt;b&gt;bit&lt;/b&gt;?<br>Thanks");
       expect(mail.html).not.toContain("<b>bit</b>");
       expect(mail.html).toContain("Q3 &lt;planning&gt;");
@@ -136,12 +133,11 @@ describe("mentions", () => {
     it("sends one email per thread per cooldown, however many replies mention them", async () => {
       const send = vi.spyOn(mailer, "sendEmail");
       const thread = await startThread(fx.ownerId, "first", [fx.editorId]);
-      await waitFor(() => send.mock.calls.length === 1); // the first mention is emailed…
+      await waitFor(() => send.mock.calls.length === 1);
       await post(fx.ownerId, `/${thread.id}/replies`, { body: "second", mentions: [fx.editorId] });
       await post(fx.ownerId, `/${thread.id}/replies`, { body: "third", mentions: [fx.editorId] });
       await sleep(400);
-      expect(send).toHaveBeenCalledTimes(1); // …the replies within the cooldown are not
-      // …but each mention is still a notification.
+      expect(send).toHaveBeenCalledTimes(1);
       expect((await notificationsFor(fx.editorId)).filter((r) => r.thread_id === thread.id)).toHaveLength(3);
     });
 
@@ -166,7 +162,7 @@ describe("mentions", () => {
     it("editing only notifies people who weren't already mentioned", async () => {
       const thread = await startThread(fx.ownerId, "draft", [commenterId]);
       const commentId = thread.comments[0]!.id;
-      await sleep(300); // the first mention is recorded in the background
+      await sleep(300);
       const before = (await notificationsFor(commenterId)).length;
       const beforeViewer = (await notificationsFor(fx.viewerId)).length;
 
@@ -195,7 +191,6 @@ describe("mentions", () => {
       expect(off.body.user.emailMentions).toBe(false);
       const on = await request(app).patch("/api/v1/auth/me").set("Authorization", `Bearer ${tokenFor(commenterId)}`).send({ emailMentions: true });
       expect(on.body.user.emailMentions).toBe(true);
-      // Changing only the preference leaves the name alone.
       expect(on.body.user.displayName).toBe("mnt commenter");
     });
 

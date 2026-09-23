@@ -7,12 +7,6 @@ import { env } from "../../config/env.js";
 import { pool } from "../../db/pool.js";
 import { attachRealtime } from "../index.js";
 
-// Shared scaffolding for the realtime test files: an in-process server, a
-// throwaway document with owner/editor/viewer users, and a TestClient that
-// speaks the sync protocol exactly the way apps/web's RealtimeProvider does
-// (join on connect, state-vector handshake, always-emit local updates,
-// origin-tagged remote applies).
-
 export const REMOTE = "test-remote";
 
 export function sleep(ms: number): Promise<void> {
@@ -122,7 +116,6 @@ export class TestClient {
       "sync:step2",
       ({ update, stateVector }: { update: ArrayBuffer; stateVector?: ArrayBuffer }) => {
         Y.applyUpdate(this.doc, new Uint8Array(update), REMOTE);
-        // Bidirectional handshake: send the server whatever it's missing.
         if (stateVector) {
           const diff = Y.encodeStateAsUpdate(this.doc, new Uint8Array(stateVector));
           if (diff.length > 2) {

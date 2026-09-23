@@ -9,8 +9,6 @@ export async function searchDocuments(userId: string, rawQuery: string, limit: n
     title: row.title,
     role: row.role,
     updatedAt: row.updated_at.toISOString(),
-    // A snippet with no highlight means only the title matched; there's nothing
-    // useful to show from the body then.
     snippet: row.snippet && row.snippet.includes(SEARCH_MARK_START) ? row.snippet : null,
   }));
 }

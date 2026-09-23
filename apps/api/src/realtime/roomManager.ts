@@ -15,10 +15,6 @@ import { appendUpdate, createSnapshot, hydrateDocument } from "./persistence.js"
 import { buildRestoreDelta } from "./restoreContent.js";
 import { createSearchIndexer } from "./searchIndex.js";
 
-// One id per running process, stamped on every Redis-relayed message so a
-// server can recognize (and skip) its own publish coming back through its
-// own subscription — Architecture §6.1/§6.3's cross-instance relay, made
-// concrete.
 const INSTANCE_ID = crypto.randomUUID();
 
 type IoServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
@@ -27,7 +23,7 @@ type Member = { userId: string; role: Role };
 
 type Room = {
   doc: Y.Doc;
-  members: Map<string, Member>; // socket.id -> member
+  members: Map<string, Member>;
 };
 
 type RelayEnvelope = { instanceId: string; dataBase64: string };
@@ -41,7 +37,6 @@ function updatesChannel(documentId: string): string {
 function awarenessChannel(documentId: string): string {
   return `doc:${documentId}:awareness`;
 }
-// One socket room per person, so anything meant for them reaches every tab they have open.
 const userRoom = (userId: string): string => `user:${userId}`;
 const NOTIFY_CHANNEL = "notifications";
 
@@ -56,20 +51,13 @@ export function createRoomManager(io: IoServer) {
   const rooms = new Map<string, Room>();
   const pendingRooms = new Map<string, Promise<Room>>();
   const channelHandlers = new Map<string, (raw: string) => void>();
-  // Documents with content changes since their last snapshot — the periodic
-  // job (snapshotJob.ts, FR-23a) only snapshots rooms in here, and clears
-  // them afterward.
   const dirty = new Set<string>();
-  // Keeps each document's searchable text fresh: every applied edit (from a local
-  // socket, another instance, or a restore) restarts a short per-document
-  // countdown, and when it fires the document's current text is indexed.
   const searchIndexer = createSearchIndexer((documentId) => rooms.get(documentId)?.doc);
 
   redisSub.on("message", (channel: string, raw: string) => {
     channelHandlers.get(channel)?.(raw);
   });
 
-  // "You have a new notification", from any server instance, to that person's sockets here.
   channelHandlers.set(NOTIFY_CHANNEL, (raw) => {
     const msg = JSON.parse(raw) as { instanceId: string; userIds: string[] };
     if (msg.instanceId === INSTANCE_ID) return;
@@ -81,13 +69,6 @@ export function createRoomManager(io: IoServer) {
     });
   }
 
-  // Redis is a transient bus, not a source of truth (Architecture §11): the
-  // update is already applied, persisted and relayed to this instance's own
-  // sockets before we get here. So a Redis failure — hosted-quota exhausted,
-  // network blip, provider outage — must degrade to "single-instance mode",
-  // never throw. Left to propagate, a failed publish rejects inside an async
-  // socket handler, and an unhandled rejection kills the whole Node process
-  // and every live session with it.
   async function publish(channel: string, data: Uint8Array): Promise<void> {
     if (!env.REDIS_RELAY) return;
     const envelope: RelayEnvelope = {
@@ -103,7 +84,6 @@ export function createRoomManager(io: IoServer) {
     }
   }
 
-  // Same fail-soft contract as publish(): a Redis problem never breaks the request.
   async function publishJson(channel: string, message: object): Promise<void> {
     if (!env.REDIS_RELAY) return;
     try {
@@ -127,9 +107,6 @@ export function createRoomManager(io: IoServer) {
       const room: Room = { doc, members: new Map() };
       rooms.set(documentId, room);
 
-      // Subscribed once per room and kept open for the process's lifetime —
-      // Architecture §6.3/§13 explicitly defers unsubscribe-on-empty as an
-      // optimization this project's scale doesn't need yet.
       channelHandlers.set(updatesChannel(documentId), (raw) => {
         const { instanceId, dataBase64 } = JSON.parse(raw) as RelayEnvelope;
         if (instanceId === INSTANCE_ID) return;
@@ -145,7 +122,6 @@ export function createRoomManager(io: IoServer) {
         const update = new Uint8Array(Buffer.from(dataBase64, "base64"));
         io.to(roomName(documentId)).emit("awareness:update", { documentId, update: toArrayBuffer(update) });
       });
-      // Comment changes made on another server instance reach this instance's sockets too.
       channelHandlers.set(commentsChannel(documentId), (raw) => {
         const msg = JSON.parse(raw) as { instanceId: string; kind: "upserted" | "deleted"; thread?: CommentThreadDTO; threadId?: string };
         if (msg.instanceId === INSTANCE_ID) return;
@@ -159,7 +135,6 @@ export function createRoomManager(io: IoServer) {
         try {
           await redisSub.subscribe(updatesChannel(documentId), awarenessChannel(documentId), commentsChannel(documentId));
         } catch (err) {
-          // Opening a document must not depend on Redis being reachable.
           console.warn(
             JSON.stringify({ level: "warn", message: "redis subscribe failed; continuing single-instance", documentId, error: (err as Error).message }),
           );
@@ -184,10 +159,6 @@ export function createRoomManager(io: IoServer) {
       await socket.join(roomName(documentId));
     },
 
-    // Ask everyone already in the room to re-announce their presence to the
-    // newcomer. Local room only — peers on another server instance won't hear
-    // this (the Redis relay carries awareness *updates*, not queries); they'd
-    // still appear on their next cursor move or Yjs's ~15s awareness renewal.
     queryAwareness(socket: Socket, documentId: string): void {
       socket.to(roomName(documentId)).emit("awareness:query", { documentId });
     },
@@ -197,8 +168,6 @@ export function createRoomManager(io: IoServer) {
       socket.leave(roomName(documentId));
     },
 
-    // Is this person looking at the document right now (on this server instance)? Used to
-    // skip an email about something they can already see happening.
     isUserPresent(documentId: string, userId: string): boolean {
       const room = rooms.get(documentId);
       if (!room) return false;
@@ -210,8 +179,6 @@ export function createRoomManager(io: IoServer) {
       return rooms.get(documentId)?.members.get(socketId);
     },
 
-    // FR-16: server responds to the client's state vector with only what
-    // it's missing, not the whole document.
     stateVectorDiff(documentId: string, clientStateVector: Uint8Array): Uint8Array {
       const room = rooms.get(documentId);
       if (!room) throw new Error(`Room ${documentId} not joined`);
@@ -224,7 +191,6 @@ export function createRoomManager(io: IoServer) {
       return Y.encodeStateVector(room.doc);
     },
 
-    // FR-13: apply, persist, relay verbatim — never interpreted or reordered.
     async applyUpdate(documentId: string, update: Uint8Array, fromSocketId: string): Promise<void> {
       const room = rooms.get(documentId);
       if (!room) return;
@@ -238,13 +204,6 @@ export function createRoomManager(io: IoServer) {
       await publish(updatesChannel(documentId), update);
     },
 
-    // FR-23(b)/FR-25: restore is expressed as one ordinary delete+insert
-    // transaction (restoreContent.ts) so it can go through the exact same
-    // persist/relay pipeline as applyUpdate — every connected client picks
-    // it up as a normal sync:update, live, no reload (FR-25's requirement).
-    // Immediately writes a new snapshot whose cutoff is "now," which is
-    // what stops a future hydration from replaying the abandoned edits
-    // back in.
     async restoreSnapshot(documentId: string, snapshotBytes: Uint8Array, triggeredBy: string): Promise<void> {
       const room = await getOrCreateRoom(documentId);
       const delta = buildRestoreDelta(room.doc, snapshotBytes);
@@ -258,21 +217,15 @@ export function createRoomManager(io: IoServer) {
       searchIndexer.schedule(documentId);
     },
 
-    // Every connection joins its owner's personal room, for messages that are about the
-    // person rather than about one document.
     joinPersonalRoom(socket: Socket, userId: string): void {
       void socket.join(userRoom(userId));
     },
 
-    // Tell these people (on any instance) that their notification list changed. Best effort:
-    // the list itself is what's authoritative, and the bell also refreshes on its own.
     async notifyUsers(userIds: string[]): Promise<void> {
       for (const userId of userIds) io.to(userRoom(userId)).emit("notification:new");
       await publishJson(NOTIFY_CHANNEL, { userIds });
     },
 
-    // Comment changes go to everyone in the document's room (and, over Redis, to other
-    // instances). Best effort: the REST response is what the author relies on.
     async broadcastThreadUpserted(documentId: string, thread: CommentThreadDTO): Promise<void> {
       io.to(roomName(documentId)).emit("comment:thread-upserted", { documentId, thread });
       await publishJson(commentsChannel(documentId), { kind: "upserted", thread });
@@ -283,11 +236,8 @@ export function createRoomManager(io: IoServer) {
       await publishJson(commentsChannel(documentId), { kind: "deleted", threadId });
     },
 
-    // Exposed so tests (and a future graceful shutdown) can force the index up to date.
     searchIndex: searchIndexer,
 
-    // FR-23(a): the periodic job snapshots only documents with changes
-    // since their last snapshot.
     getDirtyRoomIds(): string[] {
       return [...dirty];
     },
@@ -296,11 +246,10 @@ export function createRoomManager(io: IoServer) {
       if (!dirty.has(documentId)) return;
       const room = rooms.get(documentId);
       if (!room) return;
-      await createSnapshot(documentId, room.doc, null); // null = automatic (FR-23a)
+      await createSnapshot(documentId, room.doc, null);
       dirty.delete(documentId);
     },
 
-    // FR-15: relayed opaque and unpersisted, on its own channel.
     async relayAwareness(documentId: string, update: Uint8Array, fromSocketId: string): Promise<void> {
       io.to(roomName(documentId))
         .except(fromSocketId)
@@ -308,7 +257,6 @@ export function createRoomManager(io: IoServer) {
       await publish(awarenessChannel(documentId), update);
     },
 
-    // FR-11: notify, then force-disconnect every socket in the room.
     async disconnectRoom(documentId: string, message: string): Promise<void> {
       io.to(roomName(documentId)).emit("document:deleted", { documentId, message });
       const sockets = await io.in(roomName(documentId)).fetchSockets();
@@ -316,14 +264,6 @@ export function createRoomManager(io: IoServer) {
       rooms.delete(documentId);
     },
 
-    // A role change (either direction) for someone who's connected right now.
-    // Applied in place rather than disconnecting them: server-side
-    // enforcement is immediate either way (applyUpdate/FR-17 consults
-    // member.role on every message, so the very next write from a
-    // downgraded socket is rejected), and the client gets told so it can
-    // disable its toolbar and explain why (UIUX §6) instead of being
-    // stranded — socket.io does not auto-reconnect after a server-initiated
-    // disconnect. Full removal still uses kickUser (FR-14).
     updateMemberRole(documentId: string, userId: string, role: Role): void {
       const room = rooms.get(documentId);
       if (!room) return;
@@ -334,7 +274,6 @@ export function createRoomManager(io: IoServer) {
       }
     },
 
-    // FR-14: remove one user's socket(s) from the room within one round trip.
     kickUser(documentId: string, userId: string, message: string): void {
       const room = rooms.get(documentId);
       if (!room) return;

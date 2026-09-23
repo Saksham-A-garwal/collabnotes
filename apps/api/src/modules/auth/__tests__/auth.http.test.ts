@@ -46,7 +46,6 @@ describe("auth HTTP API (passwordless)", () => {
     expect(typeof res.body.refreshToken).toBe("string");
     expect(JSON.stringify(res.body)).not.toMatch(/password/i);
 
-    // The access token really works.
     await request(app).get("/api/v1/documents").set("Authorization", `Bearer ${res.body.accessToken}`).expect(200);
   });
 

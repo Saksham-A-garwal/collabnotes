@@ -2,11 +2,6 @@ import { OAuth2Client } from "google-auth-library";
 import { ApiError } from "@collabnotes/shared";
 import { env } from "../../config/env.js";
 
-// Cortex's passport-google-oauth20 strategy drives a server-initiated
-// redirect (GET /google -> Google -> GET /google/callback) with a session.
-// SRS FR-2/§5.1 instead has the SPA run the redirect itself and POST the
-// resulting `code` to the API, so the exchange happens here via
-// google-auth-library rather than passport middleware.
 const client = new OAuth2Client({
   clientId: env.GOOGLE_CLIENT_ID,
   clientSecret: env.GOOGLE_CLIENT_SECRET,
@@ -43,8 +38,6 @@ export async function exchangeGoogleCode(code: string): Promise<GoogleProfile> {
     throw new ApiError("VALIDATION_ERROR", "Google account has no verified email.");
   }
 
-  // Accounts are matched by email, so an unverified address here would let
-  // someone claim an email they don't own and take over the account behind it.
   if (payload.email_verified !== true) {
     throw new ApiError("VALIDATION_ERROR", "Your Google account's email address isn't verified.");
   }

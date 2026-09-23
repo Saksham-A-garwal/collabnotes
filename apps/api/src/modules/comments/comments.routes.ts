@@ -22,12 +22,8 @@ import {
   threadParamSchema,
 } from "./comments.schema.js";
 
-// Mounted under /api/v1/documents/:id/comments — mergeParams so `:id` from the
-// parent router is visible. authGuard is applied by the parent documents router.
 export const commentsRouter = Router({ mergeParams: true });
 
-// Writing is chatty enough for a real conversation but not for a script: 60 a minute
-// per person, across all documents.
 const writeLimit = rateLimit({
   keyPrefix: "comment-write",
   windowSeconds: 60,
@@ -36,7 +32,6 @@ const writeLimit = rateLimit({
   message: "You're commenting too fast.",
 });
 
-// People who can be @mentioned here. Registered before "/:threadId" routes so "people" is never read as an id.
 commentsRouter.get("/people", validate({ params: documentParamSchema }), asyncHandler(handleListPeople));
 commentsRouter.get("/", validate({ params: documentParamSchema }), asyncHandler(handleListComments));
 commentsRouter.post("/", writeLimit, validate({ params: documentParamSchema, body: createThreadSchema }), asyncHandler(handleCreateComment));

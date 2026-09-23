@@ -7,12 +7,9 @@ import { authGuard } from "../../middleware/authGuard.js";
 import { rateLimit } from "../../middleware/rateLimit.js";
 import { validate } from "../../middleware/validate.js";
 
-// The signed-in person's own notifications. Everything here is scoped to req.userId in
-// the query itself, so there is no id in a URL that could point at someone else's.
 export const notificationsRouter = Router();
 notificationsRouter.use(authGuard);
 
-// The bell polls, so reads are generous but not unlimited.
 const readLimit = rateLimit({ keyPrefix: "notifications-read", windowSeconds: 60, max: 120, keyBy: (req) => req.userId ?? "anonymous", message: "Too many requests." });
 
 const LIST_LIMIT = 30;
@@ -35,7 +32,6 @@ notificationsRouter.get(
   }),
 );
 
-// Registered before "/:id/read" so "read-all" is never taken for an id.
 notificationsRouter.post(
   "/read-all",
   readLimit,

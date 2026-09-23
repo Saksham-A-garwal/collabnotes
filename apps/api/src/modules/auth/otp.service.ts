@@ -18,13 +18,8 @@ import { takeDailySlot } from "./email/quota.js";
 import { renderSignInCodeEmail } from "./email/templates.js";
 
 export const CODE_TTL_SECONDS = 10 * 60;
-export const MAX_ATTEMPTS = 5; // wrong guesses allowed per code
+export const MAX_ATTEMPTS = 5;
 
-// The code is only ever stored as an HMAC keyed off a server secret and bound
-// to the address, so a database leak doesn't hand out live codes and a hash
-// from one address can't be replayed against another. (It can't stop offline
-// brute force of a 6-digit space by someone holding both the database *and* the
-// secret — that's what the short expiry and attempt cap are for.)
 function hmacKey(): Buffer {
   return crypto.createHash("sha256").update(`collabnotes:login-code:${env.JWT_SECRET}`).digest();
 }
@@ -41,8 +36,6 @@ function equalHashes(a: string, b: string): boolean {
   return left.length === right.length && crypto.timingSafeEqual(left, right);
 }
 
-// "saksham.agarwal+news@x.com" -> "Saksham Agarwal". Just a starting point;
-// new accounts are asked for their real name straight after signing in.
 export function nameFromEmail(email: string): string {
   const local = (email.split("@")[0] ?? "").split("+")[0] ?? "";
   const words = local
@@ -54,8 +47,6 @@ export function nameFromEmail(email: string): string {
 
 const frontendOrigin = (): string => env.CORS_ORIGIN.split(",")[0]!.trim();
 
-// Same work and same response whether or not an account exists for `email`, so
-// this endpoint can't be used to find out who has an account.
 export async function requestLoginCode(email: string): Promise<RequestCodeResponse> {
   const cooldown = env.OTP_RESEND_COOLDOWN_SECONDS;
   if (cooldown > 0) {
@@ -95,8 +86,6 @@ export async function requestLoginCode(email: string): Promise<RequestCodeRespon
   try {
     await sendEmail({ to: email, ...message });
   } catch (err) {
-    // The person never got this code, so it must not exist. Older codes are
-    // untouched — they were not superseded yet, so an earlier email still works.
     await deleteLoginCode(codeId).catch(() => undefined);
     console.error(
       JSON.stringify({ level: "error", message: "sign-in email failed to send", transport: env.EMAIL_TRANSPORT, error: (err as Error).message }),
@@ -104,7 +93,6 @@ export async function requestLoginCode(email: string): Promise<RequestCodeRespon
     throw new ApiError("SERVICE_UNAVAILABLE", "We couldn't send the email right now. Please try again in a moment.");
   }
 
-  // Only now that the new email is out do the older codes stop working.
   await supersedeOtherCodes(email, codeId);
   deleteStaleCodes().catch(() => undefined);
 
@@ -117,7 +105,6 @@ export async function verifyLoginCode(
   email: string,
   code: string,
 ): Promise<{ user: UserRow; isNewUser: boolean }> {
-  // Spend a guess first (see reserveAttempt), then compare.
   const reserved = await reserveAttempt(email, MAX_ATTEMPTS);
   if (!reserved) throw INVALID();
 
@@ -129,11 +116,9 @@ export async function verifyLoginCode(
     throw INVALID();
   }
 
-  // Correct — but only one request may cash it in.
   if (!(await consumeCode(reserved.id))) throw INVALID();
 
   const { user, isNew } = await findOrCreateUserByEmail({ email, displayName: nameFromEmail(email) });
-  // FR-19: an invite sent to this address before it had an account becomes real access now.
   if (isNew) await resolvePendingInvites(email, user.id);
   return { user, isNewUser: isNew };
 }

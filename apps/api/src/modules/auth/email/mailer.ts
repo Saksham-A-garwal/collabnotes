@@ -5,9 +5,6 @@ export type Email = { to: string; subject: string; html: string; text: string };
 
 export class EmailDeliveryError extends Error {}
 
-// Everything the E2E suite needs to "read its inbox": the transport keeps the
-// last few messages in memory. Only reachable when EMAIL_TRANSPORT=outbox,
-// which env.ts refuses in production.
 const outbox: Email[] = [];
 const OUTBOX_LIMIT = 200;
 
@@ -39,10 +36,8 @@ async function sendViaResend(mail: Email): Promise<void> {
       subject: mail.subject,
       html: mail.html,
       text: mail.text,
-      // Stops Gmail folding successive codes into one collapsed thread.
       headers: { "X-Entity-Ref-ID": crypto.randomUUID() },
     }),
-    // A stuck provider must not hold the request (and the user) open.
     signal: AbortSignal.timeout(10_000),
   });
 
@@ -58,7 +53,6 @@ export async function sendEmail(mail: Email): Promise<void> {
       await sendViaResend(mail);
       return;
     case "console":
-      // Local development only — this prints the sign-in code.
       console.log(`\n--- email to ${mail.to} ---\nSubject: ${mail.subject}\n\n${mail.text}\n--- end email ---\n`);
       return;
     case "outbox":

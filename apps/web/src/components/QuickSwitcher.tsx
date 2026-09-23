@@ -10,17 +10,12 @@ import { SearchHit } from "./SearchHit.js";
 
 const OPEN_EVENT = "collabnotes:open-search";
 
-// Anything can open the switcher (a header button, the keyboard shortcut) without
-// sharing state: they just announce it.
 export const openQuickSwitcher = (): void => {
   window.dispatchEvent(new Event(OPEN_EVENT));
 };
 
 export const shortcutLabel = (): string => (/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘K" : "Ctrl K");
 
-// Ctrl/Cmd+K from anywhere signed in: search your documents' titles *and* contents
-// and jump straight to one, without leaving the keyboard. With nothing typed it
-// lists recent documents.
 export function QuickSwitcher() {
   const { isAuthenticated } = useAuth();
   const [open, setOpen] = useState(false);
@@ -32,7 +27,7 @@ export function QuickSwitcher() {
     }
     const onKey = (e: globalThis.KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault(); // otherwise the browser takes Ctrl+K for its address bar
+        e.preventDefault();
         setOpen((o) => !o);
       }
     };
@@ -67,7 +62,7 @@ function SwitcherDialog({ onClose }: { onClose: () => void }) {
     documentsApi
       .list()
       .then(({ documents }) => setRecent(documents.slice(0, 6).map(asResult)))
-      .catch(() => undefined); // recents are a convenience; typing still works
+      .catch(() => undefined);
   }, []);
 
   const items = useMemo(() => (search.active ? search.results : recent), [search.active, search.results, recent]);

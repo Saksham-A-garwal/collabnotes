@@ -2,11 +2,6 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { codeFor, createDocument, editor, emailFor, invite, joinAsInvited, selectWord, typeInEditor } from "./helpers.js";
 
-// Automated WCAG 2.x A/AA scan (04-UIUX.md §10) of every screen a person can
-// reach, in both colour schemes — contrast bugs often exist in only one. axe
-// can't judge everything (focus order and screen-reader wording still need a
-// human), but it reliably catches missing names/labels, bad roles/ARIA and
-// contrast, which are exactly what silently regress.
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
 async function scan(page: Page, screen: string): Promise<void> {
@@ -18,7 +13,6 @@ async function scan(page: Page, screen: string): Promise<void> {
         .map((n) => n.target.join(" "))
         .join(" | ")}`,
   );
-  // Soft: one run reports every screen's problems instead of stopping at the first.
   expect.soft(report, `${screen}: accessibility violations`).toEqual([]);
 }
 
@@ -28,7 +22,6 @@ for (const colorScheme of ["light", "dark"] as const) {
     const alice = await aliceContext.newPage();
     const aliceEmail = emailFor("Alice");
 
-    // Sign-in, in each of its states.
     await alice.goto("/login");
     await expect(alice.getByRole("heading", { name: "Log in or sign up" })).toBeVisible();
     await scan(alice, "sign-in");
@@ -54,11 +47,9 @@ for (const colorScheme of ["light", "dark"] as const) {
     await alice.getByLabel("Your name").fill("Alice");
     await alice.getByRole("button", { name: "Continue", exact: true }).click();
 
-    // Dashboard.
     await expect(alice.getByRole("button", { name: "New document" }).first()).toBeVisible();
     await scan(alice, "dashboard (empty)");
 
-    // Editor, with real content, then with a collaborator present.
     await createDocument(alice);
     await typeInEditor(alice, "Accessibility check.");
     await scan(alice, "editor");
@@ -74,12 +65,9 @@ for (const colorScheme of ["light", "dark"] as const) {
 
     const bob = await joinAsInvited(browser, "Bob", { colorScheme });
     await editor(bob.page).click();
-    // Bob's caret label is now rendered in Alice's editor: colored text on a
-    // per-user background, the likeliest place for a contrast regression.
     await expect(alice.locator(".collaboration-cursor__label", { hasText: "Bob" })).toBeVisible();
     await scan(alice, "editor with a collaborator's caret");
 
-    // Comments: the floating button, the composer, a thread with its highlight, and a resolved one.
     await selectWord(alice, "Accessibility");
     await expect(alice.locator(".selection-comment-btn")).toBeVisible();
     await scan(alice, "editor with the floating Comment button");
@@ -97,16 +85,14 @@ for (const colorScheme of ["light", "dark"] as const) {
     await expect(alice.locator(".comment-anchor")).toBeVisible();
     await scan(alice, "editor with a highlighted comment and the panel open");
     await comments.getByRole("button", { name: "Resolve" }).click();
-    // Resolving the thread you have open keeps it in view rather than hiding it.
     await expect(comments.getByText(/Resolved by/)).toBeVisible();
     await scan(alice, "comments panel with a resolved thread");
 
-    // Bob has the document open: the mention lit his bell, and its list is a screen of its own.
     await bob.page.getByRole("button", { name: "Notifications, 1 unread" }).click();
     await expect(bob.page.getByRole("region", { name: "Notifications" })).toContainText("does this read well?");
     await scan(bob.page, "notification list with an unread mention");
     await bob.page.keyboard.press("Escape");
-    await alice.getByRole("button", { name: "Comments", exact: true }).click(); // close the panel
+    await alice.getByRole("button", { name: "Comments", exact: true }).click();
 
     await alice.getByRole("button", { name: "History" }).click();
     await expect(alice.getByRole("dialog", { name: "Version history" })).toBeVisible();
@@ -134,7 +120,6 @@ for (const colorScheme of ["light", "dark"] as const) {
     await expect(alice.getByRole("button", { name: "Log out" })).toBeVisible();
     await scan(alice, "dashboard with the account menu open");
 
-    // Not-found.
     await alice.goto("/no/such/page");
     await expect(alice.getByRole("heading", { name: "Page not found" })).toBeVisible();
     await scan(alice, "not found");

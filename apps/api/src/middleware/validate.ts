@@ -1,10 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import type { ZodTypeAny } from "zod";
 
-// Ported from the Cortex project's validate.middleware.js pattern (parse
-// body/params/query with zod, replace req properties with the parsed —
-// coerced/defaulted — values). Adapted to raise via the shared ApiError
-// envelope (SRS §8) instead of a bespoke error shape.
 type Schemas = Partial<Record<"body" | "params" | "query", ZodTypeAny>>;
 
 export function validate(schemas: Schemas) {

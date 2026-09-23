@@ -1,20 +1,15 @@
 import { expect, test } from "@playwright/test";
 import { codeFor, emailFor, newUser, signIn } from "./helpers.js";
 
-// Passwordless sign-in, end to end: the API "emails" a code (the outbox
-// transport), and these tests read it back exactly as a person would.
-
 test("Sign in with an emailed code: new account, sign out, returning user", async ({ browser }) => {
   const { context, page } = await newUser(browser);
   const email = emailFor("Zoe");
 
-  // New address: email -> code -> name step -> dashboard, greeted by name.
   await page.goto("/login");
   await signIn(page, email, { name: "Zoe Quinn" });
   await expect(page.getByRole("heading", { name: /Zoe/ })).toBeVisible();
   await expect(page).toHaveTitle(/Documents/);
 
-  // Sign out, then sign in again: a returning user skips the name step.
   await page.getByRole("button", { name: "Account menu" }).click();
   await page.getByRole("button", { name: "Log out" }).click();
   await expect(page).toHaveURL(/\/login/);
@@ -36,7 +31,6 @@ test("A wrong code is refused with a clear message and you can try again", async
   const wrong = real === "000000" ? "111111" : "000000";
   await page.getByLabel("Verification code").fill(wrong);
   await expect(page.getByRole("alert")).toContainText("incorrect or has expired");
-  // Still on the code step, input cleared and focused-ready.
   await expect(page.getByLabel("Verification code")).toHaveValue("");
 
   await page.getByLabel("Verification code").fill(real);
@@ -58,16 +52,13 @@ test("Resending a code invalidates the old one; 'use a different email' goes bac
   const second = await codeFor(page, email);
 
   if (first !== second) {
-    // The superseded code no longer works...
     await page.getByLabel("Verification code").fill(first);
     await expect(page.getByRole("alert")).toContainText("incorrect or has expired");
   }
-  // ...and the new one does.
   await page.getByLabel("Verification code").fill(second);
   await expect(page.getByLabel("Your name")).toBeVisible();
   await context.close();
 
-  // Back navigation on the code step.
   const other = await newUser(browser);
   await other.page.goto("/login");
   await other.page.getByLabel("Email", { exact: true }).fill(emailFor("Rae2"));
@@ -79,10 +70,8 @@ test("Resending a code invalidates the old one; 'use a different email' goes bac
 
 test("A Google callback this browser didn't start is refused (OAuth state / login CSRF)", async ({ browser }) => {
   const { context, page } = await newUser(browser);
-  // Someone hands the victim a link carrying the attacker's authorization code.
   await page.goto("/oauth/google/callback?code=attackers-code&state=forged");
   await expect(page.getByRole("alert")).toContainText("isn't valid or has expired");
-  // ...and nothing was signed in.
   await page.getByRole("button", { name: "Back to sign in" }).click();
   await expect(page.getByRole("heading", { name: "Log in or sign up" })).toBeVisible();
   await context.close();

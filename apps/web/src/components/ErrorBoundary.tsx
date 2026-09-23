@@ -1,9 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { BrandMark } from "./BrandMark.js";
 
-// Last line of defence: a render-time crash anywhere below shows a recovery
-// screen instead of a blank white page. (It can't catch errors in event
-// handlers or async code — those are handled where they happen.)
 export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   override state = { failed: false };
 
